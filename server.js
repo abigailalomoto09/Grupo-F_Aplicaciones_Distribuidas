@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const dotenv = require("dotenv");
+const path = require("path");
 
 const conectarDB = require("./db");
 
@@ -15,10 +16,40 @@ const io = new Server(server);
 
 conectarDB();
 
-io.on("connection", (socket) => {
-  console.log("Usuario conectado");
+
+
+// CARPETA PUBLIC
+app.use(express.static("public"));
+
+
+// RUTAS HTML
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "index.html"));
 });
 
-server.listen(process.env.PORT, () => {
-  console.log("Servidor ejecutándose");
+app.get("/lobby", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "lobby.html"));
+});
+
+app.get("/game", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "game.html"));
+});
+
+
+// SOCKETS
+io.on("connection", (socket) => {
+  console.log("Usuario conectado:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("Usuario desconectado");
+  });
+
+});
+
+
+// SERVIDOR
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log(`Servidor ejecutándose en puerto ${PORT}`);
 });
