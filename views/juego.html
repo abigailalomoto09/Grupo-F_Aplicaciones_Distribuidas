@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Partida - DrawBattle</title>
+
+    <!-- TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-white h-screen overflow-hidden">
+
+    <div class="flex h-full">
+
+        <!-- SIDEBAR IZQUIERDO -->
+        <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
+
+            <!-- HEADER -->
+            <div class="p-6 border-b border-slate-800">
+
+                <h1 class="text-4xl font-black text-cyan-400">
+                    DrawBattle
+                </h1>
+
+                <p class="text-slate-400 mt-2">
+                    Partida en progreso
+                </p>
+
+            </div>
+
+            <!-- TEMPORIZADOR -->
+            <div class="p-6 border-b border-slate-800">
+
+                <p class="text-slate-400 mb-3">
+                    Tiempo restante
+                </p>
+
+                <div
+                    id="timer"
+                    class="bg-slate-800 rounded-2xl py-6 text-center"
+                >
+
+                    <h2 class="text-6xl font-black text-cyan-400">
+                        60
+                    </h2>
+
+                </div>
+
+            </div>
+
+            <!-- PALABRA -->
+            <div class="p-6 border-b border-slate-800">
+
+                <p class="text-slate-400 mb-3">
+                    Palabra
+                </p>
+
+                <div class="bg-slate-800 rounded-2xl p-5">
+
+                    <h2
+                        id="currentWord"
+                        class="text-3xl font-black tracking-widest text-center"
+                    >
+                        _ _ _ _ _
+                    </h2>
+
+                </div>
+
+            </div>
+
+            <!-- JUGADORES -->
+            <div class="flex-1 overflow-y-auto p-6">
+
+                <div class="flex items-center justify-between mb-5">
+
+                    <h2 class="text-2xl font-bold">
+                        Puntajes
+                    </h2>
+
+                    <span
+                        id="playersCount"
+                        class="bg-cyan-500 text-black px-3 py-1 rounded-xl font-bold text-sm"
+                    >
+                        0 jugadores
+                    </span>
+
+                </div>
+
+                <!-- CONTENEDOR JUGADORES -->
+                <div
+                    id="scoreboard"
+                    class="space-y-4"
+                >
+
+                    <!--
+                        LOS JUGADORES SE AGREGAN DESDE JS
+                    -->
+
+                </div>
+
+            </div>
+
+        </aside>
+
+        <!-- AREA CENTRAL -->
+        <main class="flex-1 flex flex-col">
+
+            <!-- TOPBAR -->
+            <div class="h-24 border-b border-slate-800 bg-slate-900 flex items-center justify-between px-8">
+
+                <!-- DIBUJANTE -->
+                <div>
+
+                    <p class="text-slate-400 text-sm">
+                        Dibujando ahora
+                    </p>
+
+                    <h2
+                        id="drawerName"
+                        class="text-3xl font-black text-cyan-400"
+                    >
+                        ---
+                    </h2>
+
+                </div>
+
+                <!-- ESTADO -->
+                <div
+                    id="gameStatus"
+                    class="bg-cyan-500 text-black px-6 py-3 rounded-2xl font-black text-lg"
+                >
+                    Ronda activa
+                </div>
+
+            </div>
+
+            <!-- CANVAS -->
+            <div class="flex-1 flex items-center justify-center p-8 bg-slate-950">
+
+                <div
+                    class="bg-white rounded-3xl shadow-2xl overflow-hidden"
+                >
+
+                    <canvas
+                        id="gameCanvas"
+                        width="900"
+                        height="550"
+                        class="block"
+                    ></canvas>
+
+                </div>
+
+            </div>
+
+        </main>
+
+        <!-- CHAT -->
+        <aside class="w-96 bg-slate-900 border-l border-slate-800 flex flex-col">
+
+            <!-- HEADER CHAT -->
+            <div class="p-6 border-b border-slate-800">
+
+                <h2 class="text-3xl font-black text-cyan-400">
+                    Chat
+                </h2>
+
+                <p class="text-slate-400 mt-1">
+                    Adivina el dibujo
+                </p>
+
+            </div>
+
+            <!-- MENSAJES -->
+            <div
+                id="chatMessages"
+                class="flex-1 overflow-y-auto p-5 space-y-4"
+            >
+
+                <!--
+                    MENSAJES DINÁMICOS
+                -->
+
+            </div>
+
+            <!-- INPUT -->
+            <div class="p-5 border-t border-slate-800">
+
+                <form
+                    id="chatForm"
+                    class="flex gap-3"
+                >
+
+                    <input
+                        type="text"
+                        id="chatInput"
+                        placeholder="Escribe tu respuesta..."
+                        autocomplete="off"
+                        class="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 outline-none focus:border-cyan-400"
+                    >
+
+                    <button
+                        class="bg-cyan-500 hover:bg-cyan-400 transition-all text-black font-black px-6 rounded-2xl"
+                    >
+                        Enviar
+                    </button>
+
+                </form>
+
+            </div>
+
+        </aside>
+
+    </div>
+
+</body>
+
+</html>

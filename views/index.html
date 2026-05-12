@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DrawBattle</title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body
+    class="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center overflow-hidden"
+    style="background-image: url('/imagenes/fondo.png');"
+>
+
+    <!-- OVERLAY -->
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
+
+    <!-- CONTENEDOR -->
+    <div class="relative z-10">
+
+        <!-- TARJETA -->
+        <div class="w-[550px] bg-slate-900/40 backdrop-blur-xl border border-cyan-400/30 rounded-[35px] p-10 shadow-[0_0_40px_rgba(34,211,238,0.25)]">
+
+            <!-- TITULO -->
+            <h1
+                class="text-7xl font-black text-cyan-400 text-center mb-4 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]"
+            >
+                DrawBattle
+            </h1>
+
+            <!-- SUBTITULO -->
+            <p class="text-slate-200 text-center text-xl mb-10 font-medium tracking-wide">
+                El caos empieza con un lápiz.
+            </p>
+
+            <!-- CAMPO PARA ESCRIBIR EL NOMBRE -->
+            <div class="space-y-6">
+                <input
+                    type="text"
+                    id="nombreUsuario"
+                    placeholder="Ingresa tu nombre"
+                    class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-6 py-5 text-lg text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
+                >
+
+                <!-- BOTON -->
+                <button
+                    id="BtnIngresar"
+                    class="w-full bg-cyan-400 hover:bg-cyan-300 transition-all duration-300 text-black font-black py-5 rounded-2xl text-xl shadow-[0_0_25px_rgba(34,211,238,0.6)] hover:scale-[1.02]"
+                >
+                    Entrar al Lobby
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="/js/index.js"></script>
+</body>
+
+</html>
