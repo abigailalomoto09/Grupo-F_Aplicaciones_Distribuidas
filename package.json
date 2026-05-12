@@ -12,7 +12,17 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "mongoose": "^9.6.2",
     "socket.io": "^4.8.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abigailalomoto09/Grupo-F_Aplicaciones_Distribuidas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abigailalomoto09/Grupo-F_Aplicaciones_Distribuidas/issues"
+  },
+  "homepage": "https://github.com/abigailalomoto09/Grupo-F_Aplicaciones_Distribuidas#readme"
 }
