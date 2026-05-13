@@ -9,13 +9,13 @@ const conectarDB = require("./db");
 dotenv.config();
 
 const app = express();
-
 const server = http.createServer(app);
-
 const io = new Server(server);
 
-conectarDB();
+// CREAR ARREGLO DE JUGADORES
+let players = [];
 
+conectarDB();
 
 
 // CARPETA PUBLIC
@@ -38,10 +38,37 @@ app.get("/game", (req, res) => {
 
 // SOCKETS
 io.on("connection", (socket) => {
+
   console.log("Usuario conectado:", socket.id);
 
+  //UNIRSE AL LOBBY
+  socket.on("joinLobby", (username) => {
+
+    const player = {
+      id: socket.id,
+      username
+    };
+
+    players.push(player);
+
+    console.log(players);
+
+    // ENVIAR LISTA ACTUALIZADA
+    io.emit("playersUpdated", players);
+
+  });
+
+  // DESCONECTARSE DEL LOBBY
   socket.on("disconnect", () => {
+
+    players = players.filter(
+      player => player.id !== socket.id
+    );
+
+    io.emit("playersUpdated", players);
+
     console.log("Usuario desconectado");
+
   });
 
 });

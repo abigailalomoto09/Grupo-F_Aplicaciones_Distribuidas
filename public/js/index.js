@@ -1,4 +1,4 @@
-const input = document.getElementById("nombreUsuario");
+const input = document.getElementById("username");
 const button = document.getElementById("BtnIngresar");
 
 button.addEventListener("click", () => {
@@ -11,7 +11,7 @@ button.addEventListener("click", () => {
     }
 
     // GUARDAR NOMBRE
-    localStorage.setItem("nombreUsuario", username);
+    localStorage.setItem("username", username);
 
     // IR AL LOBBY
     window.location.href = "/lobby";
