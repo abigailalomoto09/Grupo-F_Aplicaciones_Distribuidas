@@ -18,6 +18,13 @@ if (!username) {
 socket.emit("joinLobby", username);
 
 
+// MANEJAR ERROR DE LOGIN (NOMBRE REPETIDO)
+socket.on("loginError", (mensaje) => {
+  alert(mensaje);
+  window.location.href = "/";
+});
+
+
 // RECIBIR JUGADORES
 socket.on("playersUpdated", (players) => {
 

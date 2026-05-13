@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 
 const conectarDB = require("./db");
+const Jugador = require("./models/Jugador");
 
 dotenv.config();
 
@@ -12,10 +13,11 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// CREAR ARREGLO DE JUGADORES
-let players = [];
-
-conectarDB();
+conectarDB().then(async () => {
+  // RESETEAR TODOS LOS JUGADORES A OFFLINE AL INICIAR EL SERVIDOR
+  await Jugador.updateMany({}, { online: false });
+  console.log("Estados de jugadores reseteados en la DB");
+});
 
 
 // CARPETA PUBLIC
@@ -41,34 +43,65 @@ io.on("connection", (socket) => {
 
   console.log("Usuario conectado:", socket.id);
 
+  // VERIFICAR DISPONIBILIDAD DE NOMBRE
+  socket.on("checkUsername", async (username) => {
+    try {
+      const existe = await Jugador.findOne({ username, online: true });
+      if (existe) {
+        socket.emit("usernameResult", { available: false });
+      } else {
+        socket.emit("usernameResult", { available: true, username });
+      }
+    } catch (error) {
+      console.error("Error al verificar nombre:", error);
+    }
+  });
+
   //UNIRSE AL LOBBY
-  socket.on("joinLobby", (username) => {
+  socket.on("joinLobby", async (username) => {
+    try {
+      // VALIDAR SI EL USUARIO YA ESTÁ ONLINE
+      const existe = await Jugador.findOne({ username, online: true });
 
-    const player = {
-      id: socket.id,
-      username
-    };
+      if (existe) {
+        socket.emit("loginError", "Este nombre de usuario ya está en uso en este momento.");
+        return;
+      }
 
-    players.push(player);
+      // Actualizar si existe, si no, crear (upsert)
+      await Jugador.findOneAndUpdate(
+        { username },
+        { socketId: socket.id, online: true, ultimoAcceso: new Date() },
+        { upsert: true, new: true }
+      );
 
-    console.log(players);
+      // Obtener lista actualizada de jugadores online
+      const playersOnline = await Jugador.find({ online: true });
+      
+      console.log("Jugadores online:", playersOnline.map(p => p.username));
 
-    // ENVIAR LISTA ACTUALIZADA
-    io.emit("playersUpdated", players);
-
+      // ENVIAR LISTA ACTUALIZADA
+      io.emit("playersUpdated", playersOnline);
+    } catch (error) {
+      console.error("Error en joinLobby:", error);
+    }
   });
 
   // DESCONECTARSE DEL LOBBY
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
+    try {
+      // Al desconectarse, marcar como offline
+      await Jugador.findOneAndUpdate({ socketId: socket.id }, { online: false });
 
-    players = players.filter(
-      player => player.id !== socket.id
-    );
+      // Obtener lista actualizada
+      const playersOnline = await Jugador.find({ online: true });
+      
+      io.emit("playersUpdated", playersOnline);
 
-    io.emit("playersUpdated", players);
-
-    console.log("Usuario desconectado");
-
+      console.log("Usuario desconectado");
+    } catch (error) {
+      console.error("Error en disconnect:", error);
+    }
   });
 
 });
