@@ -7,6 +7,7 @@ const path = require("path");
 const conectarDB = require("./db");
 const Jugador = require("./models/Jugador");
 const Partida = require("./models/Partida");
+const PALABRAS = require("./data/palabras");
 
 dotenv.config();
 
@@ -46,15 +47,179 @@ const lobbyState = {
 };
 
 const gameState = {
+  activa: false,
   enCurso: false,
   tiempoRonda: 20,
   tiempoRestante: 20,
   timerInterval: null,
+  jugadores: [],
+  socketPorNombre: new Map(),
+  turnoIndex: 0,
+  rondaNumero: 0,
+  dibujanteActual: null,
+  palabraActual: null,
+  palabrasUsadas: [],
+  rondaIniciada: false,
 };
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
+function obtenerListaJugadoresPartida() {
+  return gameState.jugadores.map(function (jugador) {
+    return {
+      username: jugador.username,
+      puntos: jugador.puntos,
+      conectado: gameState.socketPorNombre.has(jugador.username),
+    };
+  });
+}
+
+function emitirJugadoresPartida() {
+  io.to("game").emit("playersInGame", obtenerListaJugadoresPartida());
+}
+
+function iniciarListaJugadoresPartida(nombres) {
+  gameState.jugadores = nombres.map(function (nombre) {
+    return {
+      username: nombre,
+      puntos: 0,
+    };
+  });
+  gameState.socketPorNombre = new Map();
+  gameState.turnoIndex = 0;
+  gameState.rondaNumero = 0;
+  gameState.dibujanteActual = null;
+  gameState.palabraActual = null;
+  gameState.palabrasUsadas = [];
+  gameState.rondaIniciada = false;
+  gameState.activa = true;
+}
+
+function crearGuiones(palabra) {
+  return palabra
+    .split("")
+    .map(function () {
+      return "_";
+    })
+    .join(" ");
+}
+
+function elegirPalabra() {
+  let disponibles = PALABRAS.filter(function (p) {
+    return !gameState.palabrasUsadas.includes(p);
+  });
+
+  if (disponibles.length === 0) {
+    gameState.palabrasUsadas = [];
+    disponibles = PALABRAS.slice();
+  }
+
+  const palabra = disponibles[Math.floor(Math.random() * disponibles.length)];
+  gameState.palabrasUsadas.push(palabra);
+  return palabra;
+}
+
+function obtenerDibujanteActual() {
+  if (gameState.jugadores.length === 0) {
+    return null;
+  }
+  return gameState.jugadores[gameState.turnoIndex % gameState.jugadores.length].username;
+}
+
+function prepararRonda() {
+  gameState.dibujanteActual = obtenerDibujanteActual();
+  gameState.palabraActual = elegirPalabra();
+  gameState.rondaNumero += 1;
+
+  console.log(
+    "Ronda " + gameState.rondaNumero + " — dibuja:",
+    gameState.dibujanteActual,
+    "| palabra:",
+    gameState.palabraActual
+  );
+}
+
+function obtenerDatosRondaParaJugador(nombre) {
+  const esDibujante = nombre === gameState.dibujanteActual;
+
+  return {
+    drawer: gameState.dibujanteActual,
+    roundNumber: gameState.rondaNumero,
+    isDrawer: esDibujante,
+    word: esDibujante ? gameState.palabraActual : null,
+    wordHint: esDibujante ? null : crearGuiones(gameState.palabraActual),
+  };
+}
+
+function emitirRoundStart() {
+  gameState.socketPorNombre.forEach(function (socketId, nombre) {
+    io.to(socketId).emit("roundStart", {
+      ...obtenerDatosRondaParaJugador(nombre),
+      tiempoRestante: gameState.tiempoRestante,
+      jugadores: obtenerListaJugadoresPartida(),
+    });
+  });
+}
+
+function verificarInicioRonda() {
+  if (gameState.rondaIniciada) {
+    return;
+  }
+
+  if (gameState.socketPorNombre.size < gameState.jugadores.length) {
+    return;
+  }
+
+  gameState.rondaIniciada = true;
+  prepararRonda();
+  iniciarTemporizador();
+  emitirRoundStart();
+}
+
+function siguienteRonda() {
+  gameState.turnoIndex += 1;
+
+  if (gameState.turnoIndex >= gameState.jugadores.length) {
+    detenerTemporizador();
+    gameState.enCurso = false;
+    gameState.activa = false;
+    lobbyState.iniciandoPartida = false;
+
+    io.to("game").emit("gameEnded", {
+      jugadores: obtenerListaJugadoresPartida(),
+    });
+    return;
+  }
+
+  prepararRonda();
+  iniciarTemporizador();
+  emitirRoundStart();
+}
+
+function registrarJugadorEnPartida(socket, nombre) {
+  const estaEnPartida = gameState.jugadores.some(function (j) {
+    return j.username === nombre;
+  });
+
+  if (!estaEnPartida) {
+    return false;
+  }
+
+  gameState.socketPorNombre.set(nombre, socket.id);
+  socket.partidaUsername = nombre;
+  return true;
+}
+
+function quitarJugadorDePartida(socket) {
+  if (!socket.partidaUsername) {
+    return;
+  }
+
+  gameState.socketPorNombre.delete(socket.partidaUsername);
+  socket.partidaUsername = null;
+}
 
 function detenerTemporizador() {
   if (gameState.timerInterval) {
@@ -78,7 +243,18 @@ function iniciarTemporizador() {
     if (gameState.tiempoRestante <= 0) {
       detenerTemporizador();
       gameState.enCurso = false;
-      io.to("game").emit("roundEnded");
+
+      io.to("game").emit("roundEnded", {
+        reason: "time",
+        drawer: gameState.dibujanteActual,
+        word: gameState.palabraActual,
+      });
+
+      setTimeout(function () {
+        if (gameState.activa) {
+          siguienteRonda();
+        }
+      }, 3000);
     }
   }, 1000);
 }
@@ -200,15 +376,18 @@ io.on("connection", (socket) => {
     });
   });
 
-  // DESCONECTARSE DEL LOBBY
+  // DESCONECTARSE
   socket.on("disconnect", async () => {
     try {
-      // Al desconectarse, marcar como offline
+      if (gameState.activa && socket.partidaUsername) {
+        quitarJugadorDePartida(socket);
+        emitirJugadoresPartida();
+      }
+
       await Jugador.findOneAndUpdate({ socketId: socket.id }, { online: false });
 
-      // Obtener lista actualizada
       const playersOnline = await Jugador.find({ online: true });
-      
+
       io.to("lobby").emit("playersUpdated", playersOnline);
 
       console.log("Usuario desconectado");
@@ -240,6 +419,15 @@ io.on("connection", (socket) => {
       io.to("lobby").emit("gameStarting");
 
       gameState.tiempoRonda = tiempoRonda;
+      gameState.tiempoRestante = tiempoRonda;
+
+      const nombresJugadores = jugadoresOnline.map(function (j) {
+        return j.username;
+      });
+
+      iniciarListaJugadoresPartida(nombresJugadores);
+
+      console.log("Partida iniciada con jugadores:", nombresJugadores);
 
       let partida = await Partida.findOne();
 
@@ -256,7 +444,6 @@ io.on("connection", (socket) => {
       }
 
       await partida.save();
-      iniciarTemporizador();
 
       io.to("lobby").emit("gameStarted", {
         roundTime: gameState.tiempoRonda,
@@ -280,6 +467,21 @@ io.on("connection", (socket) => {
         return;
       }
 
+      if (!gameState.activa) {
+        socket.emit("joinGameError", "No hay una partida activa en este momento.");
+        return;
+      }
+
+      const registrado = registrarJugadorEnPartida(socket, nombre);
+
+      if (!registrado) {
+        socket.emit(
+          "joinGameError",
+          "No estás registrado en esta partida. Debes estar en el lobby antes de iniciar."
+        );
+        return;
+      }
+
       socket.join("game");
       socket.leave("lobby");
 
@@ -289,11 +491,21 @@ io.on("connection", (socket) => {
         { upsert: true, new: true }
       );
 
-      socket.emit("gameState", {
+      const estadoJuego = {
         roundTime: gameState.tiempoRonda,
         tiempoRestante: gameState.tiempoRestante,
         enCurso: gameState.enCurso,
-      });
+        jugadores: obtenerListaJugadoresPartida(),
+      };
+
+      if (gameState.rondaIniciada) {
+        Object.assign(estadoJuego, obtenerDatosRondaParaJugador(nombre));
+      }
+
+      socket.emit("gameState", estadoJuego);
+
+      emitirJugadoresPartida();
+      verificarInicioRonda();
     } catch (error) {
       console.error("Error en joinGame:", error);
       socket.emit("joinGameError", "No se pudo unir a la partida.");
