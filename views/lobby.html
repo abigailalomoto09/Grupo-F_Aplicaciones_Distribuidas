@@ -21,16 +21,39 @@
 
     <!-- CONTENIDO -->
     <main class="relative z-10 min-h-screen flex flex-col px-10 py-10">
-
+        
         <!-- HEADER -->
-        <header class="mb-10">
-            <h1 class="text-7xl font-black text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.9)]">
-                DrawBattle
-            </h1>
+        <header class="flex items-start justify-between mb-10">
 
-            <p class="text-slate-200 text-2xl mt-3">
-                Esperando jugadores para iniciar la partida
-            </p>
+            <!-- IZQUIERDA -->
+            <div>
+                <h1 class="text-7xl font-black text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.9)]">
+                    DrawBattle
+                </h1>
+
+                <p class="text-slate-200 text-2xl mt-3">
+                    Esperando jugadores para iniciar la partida
+                </p>
+            </div>
+
+            <!-- DERECHA -->
+            <div class="flex items-center gap-4 bg-slate-900/30 backdrop-blur-xl border border-white/10 px-8 py-4 rounded-full">
+
+                <div class="w-4 h-4 rounded-full bg-green-400 animate-pulse"></div>
+
+                <span class="text-xl text-slate-200">
+                    Jugadores conectados:
+                </span>
+
+                <span
+                    id="totalPlayers"
+                    class="text-3xl font-black text-cyan-400"
+                >
+                    0
+                </span>
+
+            </div>
+
         </header>
 
         <!-- CONTENIDO PRINCIPAL -->
@@ -38,22 +61,6 @@
 
             <!-- PANEL IZQUIERDO -->
             <section class="flex-1 overflow-y-auto">
-
-                <div class="inline-flex items-center gap-4 bg-slate-900/30 backdrop-blur-xl border border-white/10 px-8 py-4 rounded-full mb-10">
-                    <div class="w-4 h-4 rounded-full bg-green-400 animate-pulse"></div>
-
-                    <span class="text-xl text-slate-200">
-                        Jugadores conectados:
-                    </span>
-
-                    <span
-                        id="totalPlayers"
-                        class="text-3xl font-black text-cyan-400"
-                    >
-                        0
-                    </span>
-                </div>
-
                 <!-- JUGADORES -->
                 <div
                     id="playersContainer"
@@ -65,7 +72,6 @@
             <!-- PANEL DERECHO -->
             <aside class="w-[380px] flex-shrink-0">
                 <div class="bg-slate-900/30 backdrop-blur-xl border border-white/10 rounded-[35px] p-8 sticky top-0">
-
                     <!-- TITULO -->
                     <h2
                         class="text-4xl font-black text-cyan-400 mb-10 text-center"
@@ -82,30 +88,22 @@
 
                         <select
                             id="roundTime"
-                            class="w-full bg-slate-900/40 border border-white/10 px-6 py-5 rounded-3xl text-xl text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
+                            class="w-full bg-slate-900/40 border border-white/10 px-6 py-5 rounded-3xl text-xl text-white outline-none appearance-none cursor-pointer focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
                         >
 
-                            <option value="20">
+                            <option value="20" class="bg-slate-900 text-white">
                                 20 segundos
                             </option>
 
-                            <option value="40">
+                            <option value="40" class="bg-slate-900 text-white">
                                 40 segundos
                             </option>
 
-                            <option value="60">
+                            <option value="60" class="bg-slate-900 text-white">
                                 60 segundos
                             </option>
 
                         </select>
-                    </div>
-
-                    <!-- ESTADO -->
-                    <div
-                        id="roomStatus"
-                        class="bg-slate-950/30 border border-white/10 rounded-3xl p-6 text-center text-cyan-300 text-2xl font-bold mb-10"
-                    >
-                        Esperando más jugadores...
                     </div>
 
                     <!-- BOTON -->

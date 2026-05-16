@@ -2,28 +2,24 @@ const socket = io();
 
 const playersContainer = document.getElementById("playersContainer");
 const totalPlayers = document.getElementById("totalPlayers");
-
+const startGameBtn = document.getElementById("startGameBtn");
 
 // OBTENER NOMBRE DE USUARIO
 const username = localStorage.getItem("username");
-
 
 // SI NO EXISTE USUARIO
 if (!username) {
   window.location.href = "/";
 }
 
-
 // ENVIAR AL SERVIDOR
 socket.emit("joinLobby", username);
-
 
 // MANEJAR ERROR DE LOGIN (NOMBRE REPETIDO)
 socket.on("loginError", (mensaje) => {
   alert(mensaje);
   window.location.href = "/";
 });
-
 
 // RECIBIR JUGADORES
 socket.on("playersUpdated", (players) => {
@@ -36,12 +32,10 @@ socket.on("playersUpdated", (players) => {
   // ACTUALIZAR TOTAL
   totalPlayers.textContent = players.length;
 
-
   // RECORRER JUGADORES
   players.forEach(player => {
 
     const card = document.createElement("div");
-
 
     // ESTILOS DE TARJETA
     card.className = `
@@ -54,7 +48,6 @@ socket.on("playersUpdated", (players) => {
       hover:scale-105
       transition-all duration-300
     `;
-
 
     // CONTENIDO TARJETA
     card.innerHTML = `
@@ -82,7 +75,6 @@ socket.on("playersUpdated", (players) => {
 
       </div>
     `;
-
 
     // AGREGAR TARJETA AL HTML
     playersContainer.appendChild(card);
