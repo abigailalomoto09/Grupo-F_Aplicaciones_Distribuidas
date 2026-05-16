@@ -6,6 +6,7 @@ const path = require("path");
 
 const conectarDB = require("./db");
 const Jugador = require("./models/Jugador");
+const Partida = require("./models/Partida");
 
 dotenv.config();
 
@@ -19,10 +20,8 @@ conectarDB().then(async () => {
   console.log("Estados de jugadores reseteados en la DB");
 });
 
-
 // CARPETA PUBLIC
 app.use(express.static("public"));
-
 
 // RUTAS HTML
 app.get("/", (req, res) => {
@@ -33,10 +32,9 @@ app.get("/lobby", (req, res) => {
   res.sendFile(path.join(__dirname, "views", "lobby.html"));
 });
 
-app.get("/game", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "game.html"));
+app.get("/juego", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "juego.html"));
 });
-
 
 // SOCKETS
 io.on("connection", (socket) => {
@@ -57,7 +55,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  //UNIRSE AL LOBBY
+  // UNIRSE AL LOBBY
   socket.on("joinLobby", async (username) => {
     try {
       // VALIDAR SI EL USUARIO YA ESTÁ ONLINE
@@ -104,8 +102,28 @@ io.on("connection", (socket) => {
     }
   });
 
-});
+  // INICIAR PARTIDA
+  socket.on("startGame", async (data) => {
+    try {
+      let partida = await Partida.findOne();
+        // SI NO EXISTE LA CREA
+        if (!partida) {
+          partida = new Partida({
+            tiempoRonda: data.roundTime,
+            estado: "iniciada"
+          });
+        } else {
+          partida.tiempoRonda = data.roundTime;
+          partida.estado = "iniciada";
+        }
+        await partida.save();
+        io.emit("gameStarted");
+    } catch (error) {
+      console.log(error);
+    }
+  });
 
+});
 
 // SERVIDOR
 const PORT = process.env.PORT || 3000;
