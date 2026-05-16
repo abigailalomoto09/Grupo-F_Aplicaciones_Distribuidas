@@ -4,40 +4,148 @@ const playersContainer = document.getElementById("playersContainer");
 const totalPlayers = document.getElementById("totalPlayers");
 const startGameBtn = document.getElementById("startGameBtn");
 
-// OBTENER NOMBRE DE USUARIO
-const username = localStorage.getItem("username");
+const roundTimeInput = document.getElementById("roundTime");
+const roundTimeBtn = document.getElementById("roundTimeBtn");
+const roundTimeLabel = document.getElementById("roundTimeLabel");
+const roundTimeMenu = document.getElementById("roundTimeMenu");
+const roundTimeArrow = document.getElementById("roundTimeArrow");
+const roundTimeOptions = document.querySelectorAll(".round-time-option");
 
-// SI NO EXISTE USUARIO
-if (!username) {
-  window.location.href = "/";
+let cantidadJugadores = 0;
+let partidaIniciando = false;
+
+function cerrarMenuTiempo() {
+  roundTimeMenu.classList.add("hidden");
+  roundTimeArrow.classList.remove("rotate-180");
 }
 
-// ENVIAR AL SERVIDOR
-socket.emit("joinLobby", username);
+function abrirMenuTiempo() {
+  roundTimeMenu.classList.remove("hidden");
+  roundTimeArrow.classList.add("rotate-180");
+}
 
-// MANEJAR ERROR DE LOGIN (NOMBRE REPETIDO)
-socket.on("loginError", (mensaje) => {
-  alert(mensaje);
-  window.location.href = "/";
+function marcarOpcionSeleccionada(valor) {
+  roundTimeOptions.forEach(function (opcion) {
+    if (opcion.dataset.value === valor) {
+      opcion.classList.add("bg-cyan-400/20");
+    } else {
+      opcion.classList.remove("bg-cyan-400/20");
+    }
+  });
+}
+
+function aplicarTiempo(valor, texto) {
+  roundTimeInput.value = valor;
+  roundTimeLabel.textContent = texto;
+  marcarOpcionSeleccionada(valor);
+}
+
+function deshabilitarConfiguracion(deshabilitar) {
+  startGameBtn.disabled = deshabilitar;
+  roundTimeBtn.disabled = deshabilitar;
+
+  roundTimeOptions.forEach(function (opcion) {
+    opcion.disabled = deshabilitar;
+  });
+
+  if (deshabilitar) {
+    roundTimeBtn.classList.add("opacity-60", "cursor-not-allowed");
+  } else {
+    roundTimeBtn.classList.remove("opacity-60", "cursor-not-allowed");
+  }
+}
+
+function activarInicioPartida() {
+  partidaIniciando = true;
+  deshabilitarConfiguracion(true);
+  startGameBtn.textContent = "Iniciando partida...";
+}
+
+function cancelarInicioPartida() {
+  partidaIniciando = false;
+  deshabilitarConfiguracion(false);
+  startGameBtn.textContent = "Iniciar Partida";
+}
+
+// EVENTO: abrir o cerrar el menú de tiempo
+roundTimeBtn.addEventListener("click", function () {
+  if (partidaIniciando) {
+    return;
+  }
+
+  if (roundTimeMenu.classList.contains("hidden")) {
+    abrirMenuTiempo();
+  } else {
+    cerrarMenuTiempo();
+  }
 });
 
-// RECIBIR JUGADORES
-socket.on("playersUpdated", (players) => {
+// EVENTO: elegir una opción de tiempo
+roundTimeOptions.forEach(function (opcion) {
+  opcion.addEventListener("click", function () {
+    if (partidaIniciando) {
+      return;
+    }
 
-  console.log(players);
+    const valor = opcion.dataset.value;
+    const texto = opcion.textContent.trim();
 
-  // LIMPIAR CONTENEDOR
+    aplicarTiempo(valor, texto);
+    cerrarMenuTiempo();
+
+    socket.emit("updateRoundTime", { roundTime: valor });
+  });
+});
+
+// EVENTO: cerrar el menú al hacer clic fuera
+document.addEventListener("click", function (evento) {
+  const selectTiempo = document.getElementById("roundTimeSelect");
+
+  if (!selectTiempo.contains(evento.target)) {
+    cerrarMenuTiempo();
+  }
+});
+
+function obtenerUsuario() {
+  return sessionStorage.getItem("username");
+}
+
+function unirseAlLobby() {
+  const username = obtenerUsuario();
+
+  if (!username) {
+    window.location.replace("/");
+    return;
+  }
+
+  socket.emit("joinLobby", username);
+}
+
+unirseAlLobby();
+
+// EVENTO: volver atrás con caché del navegador (evita mezclar usuarios)
+window.addEventListener("pageshow", function (evento) {
+  if (evento.persisted) {
+    window.location.reload();
+  }
+});
+
+socket.on("loginError", function (mensaje) {
+  alert(mensaje);
+  sessionStorage.removeItem("username");
+  window.location.replace("/");
+});
+
+// EVENTO del socket: lista de jugadores
+socket.on("playersUpdated", function (players) {
+  cantidadJugadores = players.length;
+
   playersContainer.innerHTML = "";
-
-  // ACTUALIZAR TOTAL
   totalPlayers.textContent = players.length;
 
-  // RECORRER JUGADORES
-  players.forEach(player => {
-
+  players.forEach(function (player) {
     const card = document.createElement("div");
 
-    // ESTILOS DE TARJETA
     card.className = `
       bg-slate-900/30
       backdrop-blur-xl
@@ -49,7 +157,6 @@ socket.on("playersUpdated", (players) => {
       transition-all duration-300
     `;
 
-    // CONTENIDO TARJETA
     card.innerHTML = `
       <div
         class="
@@ -64,21 +171,58 @@ socket.on("playersUpdated", (players) => {
       </div>
 
       <div>
-
         <h3 class="text-2xl font-black">
           ${player.username || "Jugador"}
         </h3>
-
         <p class="text-slate-300 text-sm">
           Listo para jugar
         </p>
-
       </div>
     `;
 
-    // AGREGAR TARJETA AL HTML
     playersContainer.appendChild(card);
-
   });
-
 });
+
+// EVENTO del socket: tiempo actualizado para todos
+socket.on("roundTimeUpdated", function (data) {
+  aplicarTiempo(String(data.roundTime), data.label);
+});
+
+// EVENTO del socket: alguien inició la partida (todos lo ven)
+socket.on("gameStarting", function () {
+  activarInicioPartida();
+});
+
+// EVENTO del socket: se canceló el inicio
+socket.on("gameStartCancelled", function () {
+  cancelarInicioPartida();
+});
+
+// EVENTO: clic en iniciar partida
+startGameBtn.addEventListener("click", function () {
+  if (partidaIniciando) {
+    return;
+  }
+
+  if (cantidadJugadores < 2) {
+    alert("Deben haber al menos dos jugadores para iniciar la partida.");
+    return;
+  }
+
+  socket.emit("startGame");
+});
+
+// EVENTO del socket: la partida comenzó
+socket.on("gameStarted", function (data) {
+  sessionStorage.setItem("roundTime", data.roundTime);
+  sessionStorage.setItem("tiempoRestante", data.tiempoRestante);
+  window.location.replace("/juego");
+});
+
+// EVENTO del socket: error al iniciar
+socket.on("startGameError", function (mensaje) {
+  cancelarInicioPartida();
+  alert(mensaje);
+});
+

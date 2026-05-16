@@ -82,28 +82,63 @@
                     <!-- TIEMPO -->
                     <div class="mb-10">
 
-                        <label class="block text-2xl font-bold mb-5">
+                        <label class="block text-2xl font-bold mb-5" for="roundTimeBtn">
                             Tiempo por ronda
                         </label>
 
-                        <select
-                            id="roundTime"
-                            class="w-full bg-slate-900/40 border border-white/10 px-6 py-5 rounded-3xl text-xl text-white outline-none appearance-none cursor-pointer focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
-                        >
+                        <div class="relative" id="roundTimeSelect">
+                            <input type="hidden" id="roundTime" value="20">
 
-                            <option value="20" class="bg-slate-900 text-white">
-                                20 segundos
-                            </option>
+                            <button
+                                type="button"
+                                id="roundTimeBtn"
+                                class="w-full bg-slate-900/70 border border-cyan-400/30 px-6 py-5 rounded-3xl text-xl text-white outline-none cursor-pointer flex items-center justify-between gap-4 hover:border-cyan-400 focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
+                            >
+                                <span id="roundTimeLabel">20 segundos</span>
+                                <svg
+                                    id="roundTimeArrow"
+                                    class="w-5 h-5 text-cyan-400 shrink-0 transition-transform duration-200"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
 
-                            <option value="40" class="bg-slate-900 text-white">
-                                40 segundos
-                            </option>
-
-                            <option value="60" class="bg-slate-900 text-white">
-                                60 segundos
-                            </option>
-
-                        </select>
+                            <ul
+                                id="roundTimeMenu"
+                                class="hidden absolute left-0 right-0 top-[calc(100%+8px)] z-20 bg-slate-900/95 backdrop-blur-xl border border-cyan-400/30 rounded-3xl overflow-hidden shadow-[0_0_25px_rgba(34,211,238,0.25)]"
+                            >
+                                <li>
+                                    <button
+                                        type="button"
+                                        data-value="20"
+                                        class="round-time-option w-full text-left px-6 py-4 text-lg text-white bg-cyan-400/20 hover:bg-cyan-400/30 transition-colors"
+                                    >
+                                        20 segundos
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        type="button"
+                                        data-value="40"
+                                        class="round-time-option w-full text-left px-6 py-4 text-lg text-white hover:bg-cyan-400/20 transition-colors"
+                                    >
+                                        40 segundos
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        type="button"
+                                        data-value="60"
+                                        class="round-time-option w-full text-left px-6 py-4 text-lg text-white hover:bg-cyan-400/20 transition-colors"
+                                    >
+                                        60 segundos
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
 
                     <!-- BOTON -->
