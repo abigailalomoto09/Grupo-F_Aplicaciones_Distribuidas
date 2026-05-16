@@ -41,19 +41,20 @@
             <div id="error-message" class="hidden bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-xl mb-6 text-center text-sm font-medium">
             </div>
 
-            <!-- CAMPO PARA ESCRIBIR EL NOMBRE -->
             <div class="space-y-6">
                 <input
                     type="text"
                     id="username"
                     placeholder="Ingresa tu nombre"
-                    class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-6 py-5 text-lg text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
+                    autocomplete="username"
+                    autofocus
+                    class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-6 py-5 text-lg text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all disabled:opacity-50"
                 >
 
-                <!-- BOTON -->
                 <button
+                    type="button"
                     id="BtnIngresar"
-                    class="w-full bg-cyan-400 hover:bg-cyan-300 transition-all duration-300 text-black font-black py-5 rounded-2xl text-xl shadow-[0_0_25px_rgba(34,211,238,0.6)] hover:scale-[1.02]"
+                    class="w-full bg-cyan-400 hover:bg-cyan-300 transition-all duration-300 text-black font-black py-5 rounded-2xl text-xl shadow-[0_0_25px_rgba(34,211,238,0.6)] hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                     Entrar al Lobby
                 </button>
