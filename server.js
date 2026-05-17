@@ -34,7 +34,7 @@ app.get("/lobby", (req, res) => {
 });
 
 app.get("/game", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "game.html"));
+  res.sendFile(path.join(__dirname, "views", "juego.html"));
 });
 
 
@@ -85,6 +85,17 @@ io.on("connection", (socket) => {
     } catch (error) {
       console.error("Error en joinLobby:", error);
     }
+  });
+
+  // EVENTO DE DIBUJO
+  socket.on("draw", (data) => {
+    // Retransmitir a todos los demás jugadores en la partida
+    socket.broadcast.emit("draw", data);
+  });
+
+  // EVENTO PARA LIMPIAR CANVAS
+  socket.on("clearCanvas", () => {
+    socket.broadcast.emit("clearCanvas");
   });
 
   // DESCONECTARSE DEL LOBBY
