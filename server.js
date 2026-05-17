@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 
 const conectarDB = require("./db");
+const Jugador = require("./models/Jugador");
 
 dotenv.config();
 
@@ -12,67 +13,80 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-<<<<<<< Updated upstream
-// CREAR ARREGLO DE JUGADORES
-let players = [];
-
-conectarDB();
-=======
 conectarDB().then(async () => {
+  // Limpieza absoluta al arrancar el servidor
   await Jugador.updateMany({}, { online: false, score: 0, socketId: "" });
-  console.log("Estados y puntajes reseteados en la DB");
+  console.log("Base de datos limpia. Servidor listo para recibir conexiones.");
 });
->>>>>>> Stashed changes
 
 app.use(express.static("public"));
 
-app.get("/", (req, res) => { res.sendFile(path.join(__dirname, "views", "index.html")); });
-app.get("/lobby", (req, res) => { res.sendFile(path.join(__dirname, "views", "lobby.html")); });
-app.get("/game", (req, res) => { res.sendFile(path.join(__dirname, "views", "juego.html")); });
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "views", "index.html")));
+app.get("/lobby", (req, res) => res.sendFile(path.join(__dirname, "views", "lobby.html")));
+app.get("/game", (req, res) => res.sendFile(path.join(__dirname, "views", "juego.html")));
 
-// --- ESTADO INTERNO DEL JUEGO ---
-const PALABRAS = ["PERRO", "GATO", "CASA", "ARBOL", "COCHE", "SOL", "MANZANA", "LAPIZ", "AVION", "LUNA"];
+// --- VARIABLES DE CONTROL INTERNO DEL JUEGO ---
+const PALABRAS = ["PERRO", "GATO", "CASA", "ARBOL", "COCHE", "SOL", "LAPIZ", "LUNA"];
 let gameState = {
   inProgress: false,
-  players: [], // Aquí guardaremos objetos { username, socketId } actualizados
+  players: [],             // [{username, socketId}]
   currentDrawerIndex: 0,
   currentWord: "",
   timer: 60,
-  timerInterval: null
+  timerInterval: null,
+  currentRound: 1,         
+  maxRounds: 3,            
+  turnCount: 0             
 };
 
-function startRound() {
+function mezclarJugadores(lista) {
+  for (let i = lista.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [lista[i], lista[j]] = [lista[j], lista[i]];
+  }
+  return lista;
+}
+
+async function startRound() {
   if (gameState.players.length === 0) {
     gameState.inProgress = false;
     clearInterval(gameState.timerInterval);
     return;
   }
 
-<<<<<<< Updated upstream
-app.get("/game", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "game.html"));
-});
-=======
-  // Asegurar que el índice esté dentro del rango actual de jugadores
-  if (gameState.currentDrawerIndex >= gameState.players.length) {
+  if (gameState.turnCount >= gameState.players.length) {
+    gameState.turnCount = 0;
+    gameState.currentRound++;
     gameState.currentDrawerIndex = 0;
   }
->>>>>>> Stashed changes
+
+  // Finalizar juego al concluir la ronda 3
+  if (gameState.currentRound > gameState.maxRounds) {
+    await endGame();
+    return;
+  }
 
   const drawer = gameState.players[gameState.currentDrawerIndex];
+  if (!drawer) {
+    gameState.turnCount++;
+    gameState.currentDrawerIndex = (gameState.currentDrawerIndex + 1) % gameState.players.length;
+    startRound();
+    return;
+  }
+
   gameState.currentWord = PALABRAS[Math.floor(Math.random() * PALABRAS.length)];
   gameState.timer = 60;
 
-  console.log(`Ronda iniciada. Dibujante: ${drawer.username}, Palabra: ${gameState.currentWord}`);
+  console.log(`Jugando: Ronda ${gameState.currentRound}/${gameState.maxRounds}. Dibujante: ${drawer.username}`);
 
-  // Avisar a todos la estructura de la ronda
   io.emit("roundStarted", {
     drawerId: drawer.socketId,
     drawerName: drawer.username,
-    wordLength: gameState.currentWord.length
+    wordLength: gameState.currentWord.length,
+    currentRound: gameState.currentRound,
+    maxRounds: gameState.maxRounds
   });
 
-  // Enviar la palabra secreta ÚNICAMENTE al dibujante
   io.to(drawer.socketId).emit("secretWord", gameState.currentWord);
   io.emit("clearCanvas");
 
@@ -90,138 +104,164 @@ app.get("/game", (req, res) => {
 
 function endRound(reason) {
   clearInterval(gameState.timerInterval);
-  io.emit("chatMessage", { 
+  
+  io.emit("chat", { 
     username: "SISTEMA", 
     text: `La ronda ha terminado. Razón: ${reason}. La palabra era: ${gameState.currentWord}` 
   });
   
+  gameState.turnCount++;
   gameState.currentDrawerIndex = (gameState.currentDrawerIndex + 1) % gameState.players.length;
   
   setTimeout(() => {
-    if (gameState.inProgress && gameState.players.length > 0) {
+    if (gameState.inProgress) {
       startRound();
     }
   }, 4000);
 }
 
+async function endGame() {
+  gameState.inProgress = false;
+  clearInterval(gameState.timerInterval);
+
+  try {
+    const finalPlayers = await Jugador.find({ online: true }).sort({ score: -1 });
+    let ganadorTexto = "No se registraron puntajes.";
+    
+    if (finalPlayers.length > 0) {
+      ganadorTexto = `🏆 ¡El ganador de la partida es ${finalPlayers[0].username} con ${finalPlayers[0].score || 0} pts!`;
+    }
+
+    io.emit("gameEnded", {
+      ganador: ganadorTexto,
+      players: finalPlayers
+    });
+    
+    // Reinicio completo del estado para la siguiente partida
+    gameState.players = [];
+    await Jugador.updateMany({}, { score: 0 }); 
+  } catch (err) {
+    console.error("Error al finalizar la partida:", err);
+  }
+}
+
 // --- MANEJO DE SOCKETS ---
 io.on("connection", (socket) => {
-  console.log("Usuario conectado:", socket.id);
 
-<<<<<<< Updated upstream
-  //UNIRSE AL LOBBY
-  socket.on("joinLobby", (username) => {
-
-    const player = {
-      id: socket.id,
-      username
-    };
-
-    players.push(player);
-
-    console.log(players);
-
-    // ENVIAR LISTA ACTUALIZADA
-    io.emit("playersUpdated", players);
-
-  });
-
-  // DESCONECTARSE DEL LOBBY
-  socket.on("disconnect", () => {
-
-    players = players.filter(
-      player => player.id !== socket.id
-    );
-
-    io.emit("playersUpdated", players);
-
-    console.log("Usuario desconectado");
-
-=======
+  // FILTRO DE ACCESO EN LOGIN: Respuesta inmediata garantizada
   socket.on("checkUsername", async (username) => {
     try {
+      if (gameState.inProgress) {
+        return socket.emit("usernameResult", { available: false, error: "PARTIDA_EN_CURSO" });
+      }
+
+      const count = await Jugador.countDocuments({ online: true });
+      if (count >= 4) {
+        return socket.emit("usernameResult", { available: false, error: "SALA_LLENA" });
+      }
+
       const existe = await Jugador.findOne({ username, online: true });
-      socket.emit("usernameResult", { available: !existe, username });
+      if (existe) {
+        return socket.emit("usernameResult", { available: false, error: "USUARIO_REPETIDO" });
+      }
+
+      // Si pasa todos los filtros, permitir ingreso
+      socket.emit("usernameResult", { available: true, username });
     } catch (error) {
-      console.error(error);
+      console.error("Error en checkUsername:", error);
+      socket.emit("usernameResult", { available: false, error: "ERROR_SERVIDOR" });
     }
   });
 
-  // Evento unificado para registrar/actualizar el socket de un jugador
+  // ENTRADA AL LOBBY
   socket.on("joinLobby", async (username) => {
     try {
-      let jugador = await Jugador.findOneAndUpdate(
+      if (!username) return;
+      socket.username = username; 
+      
+      await Jugador.findOneAndUpdate(
         { username },
         { socketId: socket.id, online: true },
         { upsert: true, new: true }
       );
-
+      
       const playersOnline = await Jugador.find({ online: true });
       io.emit("playersUpdated", playersOnline);
-
-      // Si el juego ya está en marcha, sincronizamos al jugador que reingresa en la lista interna
-      if (gameState.inProgress) {
-        const index = gameState.players.findIndex(p => p.username === username);
-        if (index !== -1) {
-          gameState.players[index].socketId = socket.id;
-        } else {
-          gameState.players.push({ username: jugador.username, socketId: socket.id });
-        }
-      }
     } catch (error) {
       console.error(error);
     }
   });
 
-  // Petición desde el Lobby para comenzar
-  socket.on("requestStartGame", async () => {
-    const playersOnline = await Jugador.find({ online: true });
-    if (playersOnline.length < 2) {
-      socket.emit("chatMessage", { username: "SISTEMA", text: "Se necesitan al menos 2 jugadores para iniciar la batalla." });
-      return;
+  socket.on("draw", (data) => {
+    const currentDrawer = gameState.players[gameState.currentDrawerIndex];
+    if (gameState.inProgress && currentDrawer && currentDrawer.socketId === socket.id) {
+      socket.broadcast.emit("draw", data);
     }
-
-    gameState.inProgress = true;
-    gameState.players = []; // Se limpiará temporalmente para llenarse al cargar /game
-    gameState.currentDrawerIndex = 0;
-
-    io.emit("redirectToGame");
   });
 
-  // ¡EVENTO CLAVE! Cada cliente avisa cuando ya terminó de cargar la vista /game
+  socket.on("clearCanvas", () => {
+    const currentDrawer = gameState.players[gameState.currentDrawerIndex];
+    if (gameState.inProgress && currentDrawer && currentDrawer.socketId === socket.id) {
+      socket.broadcast.emit("clearCanvas");
+    }
+  });
+
+  // INICIAR PARTIDA (ENTRE 2 Y 4 JUGADORES)
+  socket.on("requestStartGame", async () => {
+    let playersOnline = await Jugador.find({ online: true });
+    
+    if (playersOnline.length < 2 || playersOnline.length > 4) {
+      return socket.emit("chat", { username: "SISTEMA", text: "⚠️ Se necesitan entre 2 y 4 jugadores para iniciar." });
+    }
+
+    playersOnline = mezclarJugadores(playersOnline);
+
+    gameState.inProgress = true;
+    gameState.currentRound = 1;
+    gameState.turnCount = 0;
+    gameState.currentDrawerIndex = 0;
+    
+    gameState.players = playersOnline.map(p => ({ username: p.username, socketId: p.socketId }));
+
+    io.emit("redirectToGame");
+
+    setTimeout(() => {
+      startRound();
+    }, 3500);
+  });
+
+  // SINCRONIZACIÓN DE LA PANTALLA DE JUEGO
   socket.on("syncGameScreen", async (username) => {
     try {
-      // Forzar actualización del ID de socket en la base de datos
-      await Jugador.findOneAndUpdate({ username }, { socketId: socket.id, online: true });
+      if (!username) return;
+      socket.username = username; 
       
+      await Jugador.findOneAndUpdate({ username }, { socketId: socket.id, online: true });
       const playersOnline = await Jugador.find({ online: true });
       
-      // Re-construir de forma segura la lista del juego con los Sockets Nuevos
-      const index = gameState.players.findIndex(p => p.username === username);
-      if (index === -1) {
-        gameState.players.push({ username: username, socketId: socket.id });
+      const idx = gameState.players.findIndex(p => p.username === username);
+      if (idx !== -1) {
+        gameState.players[idx].socketId = socket.id;
       } else {
-        gameState.players[index].socketId = socket.id;
+        if (gameState.inProgress) {
+          return socket.emit("gameBlocked", "Espera que se termine la partida activa.");
+        }
+        gameState.players.push({ username: username, socketId: socket.id });
       }
 
-      // Enviar la tabla actualizada con las puntuaciones de DB
       io.emit("updateScoreboard", playersOnline);
 
-      // Si es el primer jugador en reportarse listo, esperamos un breve lapso y arrancamos la primera ronda
-      if (gameState.inProgress && gameState.players.length === 1) {
-        setTimeout(() => {
-          if (gameState.players.length > 0) startRound();
-        }, 2000); 
-      } else if (gameState.inProgress) {
-        // Para jugadores que entren ligeramente más tarde, se les sincroniza el estado actual
+      if (gameState.inProgress) {
         const drawer = gameState.players[gameState.currentDrawerIndex];
         if (drawer) {
           socket.emit("roundStarted", {
             drawerId: drawer.socketId,
             drawerName: drawer.username,
-            wordLength: gameState.currentWord.length
+            wordLength: gameState.currentWord.length,
+            currentRound: gameState.currentRound,
+            maxRounds: gameState.maxRounds
           });
-          if (drawer.socketId === socket.id) {
+          if (drawer.username === username) {
             socket.emit("secretWord", gameState.currentWord);
           }
         }
@@ -231,68 +271,50 @@ io.on("connection", (socket) => {
     }
   });
 
-  // RELES DE CANVAS
-  socket.on("draw", (data) => {
-    socket.broadcast.emit("draw", data);
-  });
-
-  socket.on("clearCanvas", () => {
-    io.emit("clearCanvas");
-  });
-
-  // PROCESAMIENTO DEL CHAT Y ADIVINANZAS
-  socket.on("sendMessage", async (msgData) => {
+  socket.on("chat", async (msgData) => {
     try {
-      const jugador = await Jugador.findOne({ socketId: socket.id });
-      if (!jugador) return;
+      const username = socket.username;
+      if (!username) return;
+
+      const currentDrawer = gameState.players[gameState.currentDrawerIndex];
+      const esDibujante = currentDrawer && currentDrawer.username === username;
+
+      if (esDibujante) return; 
 
       const mensajeLimpio = msgData.text.trim().toUpperCase();
-      const currentDrawer = gameState.players[gameState.currentDrawerIndex];
-      const esDibujante = currentDrawer && currentDrawer.socketId === socket.id;
 
-      if (gameState.inProgress && mensajeLimpio === gameState.currentWord && !esDibujante) {
-        jugador.score += 100;
-        await jugador.save();
+      if (gameState.inProgress && mensajeLimpio === gameState.currentWord) {
+        const jugador = await Jugador.findOne({ username: username });
+        if (jugador) {
+          jugador.score = (jugador.score || 0) + 100;
+          await jugador.save();
 
-        io.emit("chatMessage", { 
-          username: "SISTEMA", 
-          text: `🎉 ¡${jugador.username} ha adivinado la palabra! (+100 pts)` 
-        });
+          io.emit("chat", { 
+            username: "SISTEMA", 
+            text: `🎉 ¡${username} ha adivinado la palabra! (+100 pts)` 
+          });
 
-        const playersOnline = await Jugador.find({ online: true });
-        io.emit("updateScoreboard", playersOnline);
+          const playersOnline = await Jugador.find({ online: true });
+          io.emit("updateScoreboard", playersOnline);
 
-        endRound(`Adivinado por ${jugador.username}`);
+          gameState.currentWord = ""; // Evita que otros jugadores adivinen la misma palabra repetidas veces
+          endRound(`Adivinado por ${username}`);
+        }
       } else {
-        io.emit("chatMessage", { username: jugador.username, text: msgData.text });
+        io.emit("chat", { username: username, text: msgData.text });
       }
     } catch (err) {
       console.error(err);
     }
->>>>>>> Stashed changes
   });
 
   socket.on("disconnect", async () => {
     try {
-      const jugadorEliminado = await Jugador.findOneAndUpdate({ socketId: socket.id }, { online: false });
-      
-      if (jugadorEliminado) {
-        const username = jugadorEliminado.username;
-        // Quitar de la lista de juego activa
-        gameState.players = gameState.players.filter(p => p.username !== username);
-        
-        const playersOnline = await Jugador.find({ online: true });
-        io.emit("playersUpdated", playersOnline);
-        io.emit("updateScoreboard", playersOnline);
-
-        // Validar si el que se desconectó era el dibujante del turno activo
-        if (gameState.inProgress && gameState.players.length > 0) {
-          const currentDrawer = gameState.players[gameState.currentDrawerIndex];
-          if (!currentDrawer || currentDrawer.username === username) {
-            endRound("El dibujante abandonó la partida");
-          }
-        }
+      if (socket.username) {
+        await Jugador.findOneAndUpdate({ username: socket.username }, { online: false });
       }
+      const playersOnline = await Jugador.find({ online: true });
+      io.emit("updateScoreboard", playersOnline);
     } catch (error) {
       console.error(error);
     }
@@ -300,4 +322,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`Servidor en puerto ${PORT}`); });
+server.listen(PORT, () => console.log(`Servidor corriendo en el puerto ${PORT}`));

@@ -1,11 +1,8 @@
-<<<<<<< Updated upstream
-=======
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 let isDrawing = false;
 
-// Variable global inicializada por defecto en false
-window.canDraw = false; 
+window.canDraw = false; // Control de seguridad compartido por juego.js
 
 // Ajustes de dibujo
 ctx.lineWidth = 3;
@@ -19,7 +16,7 @@ canvas.addEventListener("mouseup", stopDrawing);
 canvas.addEventListener("mouseout", stopDrawing);
 
 function startDrawing(e) {
-  if (!window.canDraw) return; // Validación del rol
+  if (!window.canDraw) return;
   isDrawing = true;
   draw(e);
 }
@@ -74,4 +71,3 @@ socket.on("draw", (data) => {
 socket.on("clearCanvas", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
->>>>>>> Stashed changes
