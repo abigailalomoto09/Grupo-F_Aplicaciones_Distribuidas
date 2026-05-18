@@ -1,7 +1,8 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 let isDrawing = false;
-let canDraw = true; // Por ahora todos pueden dibujar para probar, luego se controlará por el servidor
+
+window.canDraw = false; // Control de seguridad compartido por juego.js
 
 // Ajustes de dibujo
 ctx.lineWidth = 3;
@@ -15,13 +16,13 @@ canvas.addEventListener("mouseup", stopDrawing);
 canvas.addEventListener("mouseout", stopDrawing);
 
 function startDrawing(e) {
-  if (!canDraw) return;
+  if (!window.canDraw) return;
   isDrawing = true;
   draw(e);
 }
 
 function draw(e) {
-  if (!isDrawing || !canDraw) return;
+  if (!isDrawing || !window.canDraw) return;
 
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -44,6 +45,7 @@ function draw(e) {
 }
 
 function stopDrawing() {
+  if (!isDrawing) return;
   isDrawing = false;
   ctx.beginPath();
   

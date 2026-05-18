@@ -2,21 +2,18 @@ const socket = io();
 
 const playersContainer = document.getElementById("playersContainer");
 const totalPlayers = document.getElementById("totalPlayers");
+const startGameBtn = document.getElementById("startGameBtn");
 
-
-// OBTENER NOMBRE DE USUARIO
-const username = localStorage.getItem("username");
-
+// OBTENER NOMBRE DE USUARIO (por pestaña)
+const username = sessionStorage.getItem("username");
 
 // SI NO EXISTE USUARIO
 if (!username) {
   window.location.href = "/";
 }
 
-
 // ENVIAR AL SERVIDOR
 socket.emit("joinLobby", username);
-
 
 // MANEJAR ERROR DE LOGIN (NOMBRE REPETIDO)
 socket.on("loginError", (mensaje) => {
@@ -27,21 +24,15 @@ socket.on("loginError", (mensaje) => {
 
 // RECIBIR JUGADORES
 socket.on("playersUpdated", (players) => {
-
   console.log(players);
-
   // LIMPIAR CONTENEDOR
   playersContainer.innerHTML = "";
-
   // ACTUALIZAR TOTAL
   totalPlayers.textContent = players.length;
 
-
   // RECORRER JUGADORES
   players.forEach(player => {
-
     const card = document.createElement("div");
-
 
     // ESTILOS DE TARJETA
     card.className = `
@@ -54,7 +45,6 @@ socket.on("playersUpdated", (players) => {
       hover:scale-105
       transition-all duration-300
     `;
-
 
     // CONTENIDO TARJETA
     card.innerHTML = `
@@ -69,24 +59,29 @@ socket.on("playersUpdated", (players) => {
       >
         ${player.username?.charAt(0)?.toUpperCase() || "?"}
       </div>
-
       <div>
-
         <h3 class="text-2xl font-black">
           ${player.username || "Jugador"}
         </h3>
-
         <p class="text-slate-300 text-sm">
           Listo para jugar
         </p>
-
       </div>
     `;
 
-
     // AGREGAR TARJETA AL HTML
     playersContainer.appendChild(card);
-
   });
+});
 
+// ESCUCHAR EVENTO DEL BOTÓN INICIAR PARTIDA
+if (startGameBtn) {
+  startGameBtn.addEventListener("click", () => {
+    socket.emit("requestStartGame");
+  });
+}
+
+// REDIRECCIÓN COLECTIVA AL INSTANTE
+socket.on("redirectToGame", () => {
+  window.location.href = "/game";
 });

@@ -1,21 +1,26 @@
 const mongoose = require("mongoose");
 
 const JugadorSchema = new mongoose.Schema({
-  username: { 
-    type: String, 
-    required: true, 
-    unique: true 
+  username: {
+    type: String,
+    required: true,
+    unique: true
   },
-  socketId: { 
-    type: String 
+  socketId: {
+    type: String,
+    default: ""
   },
-  online: { 
-    type: Boolean, 
-    default: false 
+  online: {
+    type: Boolean,
+    default: false
   },
-  ultimoAcceso: { 
-    type: Date, 
-    default: Date.now 
+  score: {
+    type: Number,
+    default: 0
+  },
+  ultimoAcceso: {
+    type: Date,
+    default: Date.now
   }
 });
 
