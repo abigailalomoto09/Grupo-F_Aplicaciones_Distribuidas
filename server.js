@@ -138,11 +138,44 @@ async function endGame() {
       players: finalPlayers
     });
     
-    // Reinicio completo del estado para la siguiente partida
+    // Reinicio parcial del estado para cerrar la partida, pero preservar el host si sigue en el lobby
     gameState.players = [];
+    gameState.currentDrawerIndex = 0;
+    gameState.currentWord = "";
+    gameState.currentRound = 1;
+    gameState.turnCount = 0;
     await Jugador.updateMany({}, { score: 0 }); 
   } catch (err) {
     console.error("Error al finalizar la partida:", err);
+  }
+}
+
+async function clearGameStateIfLobbyEmpty() {
+  const onlinePlayersCount = await Jugador.countDocuments({ online: true });
+  if (onlinePlayersCount === 0) {
+    gameState.inProgress = false;
+    gameState.players = [];
+    gameState.host = undefined;
+    gameState.currentDrawerIndex = 0;
+    gameState.currentWord = "";
+    gameState.currentRound = 1;
+    gameState.turnCount = 0;
+    gameState.timer = 60;
+    if (gameState.timerInterval) {
+      clearInterval(gameState.timerInterval);
+      gameState.timerInterval = null;
+    }
+  }
+}
+
+function refreshHostIfNeeded(playersOnline) {
+  if (!playersOnline || playersOnline.length === 0) {
+    gameState.host = undefined;
+    return;
+  }
+
+  if (!gameState.host || !playersOnline.some(p => p.username === gameState.host)) {
+    gameState.host = playersOnline[0].username;
   }
 }
 
@@ -187,15 +220,31 @@ io.on("connection", (socket) => {
       );
       
       const playersOnline = await Jugador.find({ online: true });
-      // assign host if not set
-      if (!gameState.host && playersOnline.length > 0) {
-        gameState.host = playersOnline[0].username;
-      }
+      refreshHostIfNeeded(playersOnline);
 
       io.emit("playersUpdated", playersOnline);
       io.emit("lobbyInfo", { players: playersOnline, host: gameState.host });
     } catch (error) {
       console.error(error);
+    }
+  });
+
+  // SINCRONIZAR CAMBIOS DE CONFIGURACIÓN
+  socket.on("updateGameConfig", (config) => {
+    try {
+      if (socket.username === gameState.host) {
+        if (config.roundTime) gameState.roundTime = config.roundTime;
+        if (config.maxRounds) gameState.maxRounds = config.maxRounds;
+        
+        // Emitir a TODOS los clientes incluyendo al que hizo el cambio
+        io.emit("configUpdated", {
+          roundTime: gameState.roundTime,
+          maxRounds: gameState.maxRounds
+        });
+        console.log(`Configuración actualizada por ${socket.username}:`, { roundTime: gameState.roundTime, maxRounds: gameState.maxRounds });
+      }
+    } catch (error) {
+      console.error("Error updating config:", error);
     }
   });
 
@@ -213,7 +262,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // INICIAR PARTIDA (mínimo 3 jugadores, máximo 4)
+  // INICIAR PARTIDA (mínimo 2 jugadores, máximo 4)
   socket.on("requestStartGame", async (options = {}) => {
     try {
       // only host can start
@@ -222,7 +271,7 @@ io.on("connection", (socket) => {
       }
 
       let playersOnline = await Jugador.find({ online: true });
-      const minPlayers = 3;
+      const minPlayers = 2;
       const maxPlayers = 4;
 
       if (playersOnline.length < minPlayers || playersOnline.length > maxPlayers) {
@@ -345,7 +394,10 @@ io.on("connection", (socket) => {
         await Jugador.findOneAndUpdate({ username: socket.username }, { online: false });
       }
       const playersOnline = await Jugador.find({ online: true });
+      refreshHostIfNeeded(playersOnline);
       io.emit("updateScoreboard", playersOnline);
+      io.emit("lobbyInfo", { players: playersOnline, host: gameState.host });
+      await clearGameStateIfLobbyEmpty();
     } catch (error) {
       console.error(error);
     }
