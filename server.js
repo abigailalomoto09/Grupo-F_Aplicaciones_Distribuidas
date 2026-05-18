@@ -59,6 +59,7 @@ async function startRound() {
     gameState.turnCount = 0;
     gameState.currentRound++;
     gameState.currentDrawerIndex = 0;
+    gameState.players = mezclarJugadores([...gameState.players]);
   }
 
   // Finalizar juego al concluir la ronda 3
@@ -68,7 +69,7 @@ async function startRound() {
   }
 
   const drawer = gameState.players[gameState.currentDrawerIndex];
-  if (!drawer) {
+  if (!drawer || !drawer.socketId) {
     gameState.turnCount++;
     gameState.currentDrawerIndex = (gameState.currentDrawerIndex + 1) % gameState.players.length;
     startRound();
@@ -128,7 +129,8 @@ async function endGame() {
   clearInterval(gameState.timerInterval);
 
   try {
-    const finalPlayers = await Jugador.find({ online: true }).sort({ score: -1 });
+    const finalPlayers = await getScoreboardPlayers();
+    finalPlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
     let ganadorTexto = "No se registraron puntajes.";
     
     if (finalPlayers.length > 0) {
@@ -179,6 +181,30 @@ function refreshHostIfNeeded(playersOnline) {
   if (!gameState.host || !playersOnline.some(p => p.username === gameState.host)) {
     gameState.host = playersOnline[0].username;
   }
+}
+
+async function getScoreboardPlayers() {
+  const usernames = gameState.players.map(player => player.username);
+  if (usernames.length === 0) {
+    return [];
+  }
+
+  const playersInDb = await Jugador.find({ username: { $in: usernames } }).select("username score online");
+  const playersByUsername = new Map(playersInDb.map(player => [player.username, player]));
+
+  return gameState.players.map(player => {
+    const dbPlayer = playersByUsername.get(player.username);
+    return {
+      username: player.username,
+      score: dbPlayer ? dbPlayer.score || 0 : 0,
+      online: dbPlayer ? dbPlayer.online : false
+    };
+  });
+}
+
+async function emitScoreboard() {
+  const playersForScoreboard = await getScoreboardPlayers();
+  io.emit("updateScoreboard", playersForScoreboard);
 }
 
 // --- MANEJO DE SOCKETS ---
@@ -319,13 +345,10 @@ io.on("connection", (socket) => {
       if (idx !== -1) {
         gameState.players[idx].socketId = socket.id;
       } else {
-        if (gameState.inProgress) {
-          return socket.emit("gameBlocked", "Espera que se termine la partida activa.");
-        }
         gameState.players.push({ username: username, socketId: socket.id });
       }
 
-      io.emit("updateScoreboard", playersOnline);
+      await emitScoreboard();
 
       if (gameState.inProgress) {
         const drawer = gameState.players[gameState.currentDrawerIndex];
@@ -378,8 +401,7 @@ io.on("connection", (socket) => {
             text: `¡${username} ha adivinado la palabra! (+${points} pts)` 
           });
 
-          const playersOnline = await Jugador.find({ online: true });
-          io.emit("updateScoreboard", playersOnline);
+          await emitScoreboard();
 
           gameState.currentWord = ""; // Evita que otros jugadores adivinen la misma palabra repetidas veces
           endRound(`Adivinado por ${username}`);
@@ -396,14 +418,18 @@ io.on("connection", (socket) => {
     try {
       if (socket.username) {
         await Jugador.findOneAndUpdate({ username: socket.username }, { online: false });
-        // Remover al jugador de la partida activa si está en progreso
         if (gameState.inProgress) {
+          const idx = gameState.players.findIndex(p => p.username === socket.username);
+          if (idx !== -1) {
+            gameState.players[idx].socketId = "";
+          }
+        } else {
           gameState.players = gameState.players.filter(p => p.username !== socket.username);
         }
       }
       const playersOnline = await Jugador.find({ online: true });
       refreshHostIfNeeded(playersOnline);
-      io.emit("updateScoreboard", playersOnline);
+      await emitScoreboard();
       io.emit("lobbyInfo", { players: playersOnline, host: gameState.host });
       await clearGameStateIfLobbyEmpty();
     } catch (error) {
