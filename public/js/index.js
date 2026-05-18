@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
       socket.emit("checkUsername", username);
     } else {
       if (errorMsg) {
-        errorMsg.textContent = "⚠️ Por favor, ingresa un nombre de usuario.";
+        errorMsg.textContent = "Por favor, ingresa un nombre de usuario.";
         errorMsg.classList.remove("hidden");
       } else {
         alert("Por favor, ingresa un nombre de usuario.");
@@ -51,11 +51,11 @@ socket.on("usernameResult", (data) => {
     const errorMsg = document.getElementById("errorMsg");
     if (errorMsg) {
       if (data.error === "PARTIDA_EN_CURSO") {
-        errorMsg.textContent = "⚠️ Espera que se termine la partida actual para ingresar.";
+        errorMsg.textContent = "Espera que se termine la partida actual para ingresar.";
       } else if (data.error === "SALA_LLENA") {
-        errorMsg.textContent = "❌ La sala está llena (Máximo 4 jugadores).";
+        errorMsg.textContent = "La sala está llena (Máximo 4 jugadores).";
       } else if (data.error === "ERROR_SERVIDOR") {
-        errorMsg.textContent = "❌ Error en el servidor. Intenta de nuevo.";
+        errorMsg.textContent = "Error en el servidor. Intenta de nuevo.";
       } else {
         errorMsg.textContent = "El nombre de usuario ya está en uso.";
       }

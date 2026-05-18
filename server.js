@@ -16,7 +16,7 @@ const io = new Server(server);
 conectarDB().then(async () => {
   // Limpieza absoluta al arrancar el servidor
   await Jugador.updateMany({}, { online: false, score: 0, socketId: "" });
-  console.log("Base de datos limpia. Servidor listo para recibir conexiones.");
+  console.log("Servidor listo para recibir conexiones.");
 });
 
 app.use(express.static("public"));
@@ -76,9 +76,9 @@ async function startRound() {
   }
 
   gameState.currentWord = PALABRAS[Math.floor(Math.random() * PALABRAS.length)];
-  gameState.timer = 60;
+  gameState.timer = gameState.roundTime || 60;
 
-  console.log(`Jugando: Ronda ${gameState.currentRound}/${gameState.maxRounds}. Dibujante: ${drawer.username}`);
+  console.log(`Jugando: Ronda ${gameState.currentRound}/${gameState.maxRounds}. Dibujante: ${drawer.username}. Tiempo por ronda: ${gameState.timer}s`);
 
   io.emit("roundStarted", {
     drawerId: drawer.socketId,
@@ -130,7 +130,7 @@ async function endGame() {
     let ganadorTexto = "No se registraron puntajes.";
     
     if (finalPlayers.length > 0) {
-      ganadorTexto = `🏆 ¡El ganador de la partida es ${finalPlayers[0].username} con ${finalPlayers[0].score || 0} pts!`;
+      ganadorTexto = `¡El ganador de la partida es ${finalPlayers[0].username} con ${finalPlayers[0].score || 0} pts!`;
     }
 
     io.emit("gameEnded", {
@@ -275,7 +275,7 @@ io.on("connection", (socket) => {
       const maxPlayers = 4;
 
       if (playersOnline.length < minPlayers || playersOnline.length > maxPlayers) {
-        return socket.emit("chat", { username: "SISTEMA", text: `⚠️ Se necesitan entre ${minPlayers} y ${maxPlayers} jugadores para iniciar.` });
+        return socket.emit("chat", { username: "SISTEMA", text: `Se necesitan entre ${minPlayers} y ${maxPlayers} jugadores para iniciar.` });
       }
 
       // Apply options
@@ -371,7 +371,7 @@ io.on("connection", (socket) => {
 
           io.emit("chat", { 
             username: "SISTEMA", 
-            text: `🎉 ¡${username} ha adivinado la palabra! (+${points} pts)` 
+            text: `¡${username} ha adivinado la palabra! (+${points} pts)` 
           });
 
           const playersOnline = await Jugador.find({ online: true });
