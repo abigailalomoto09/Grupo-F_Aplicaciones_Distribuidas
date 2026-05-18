@@ -85,9 +85,11 @@ async function startRound() {
     drawerName: drawer.username,
     wordLength: gameState.currentWord.length,
     currentRound: gameState.currentRound,
-    maxRounds: gameState.maxRounds
+    maxRounds: gameState.maxRounds,
+    timer: gameState.timer
   });
 
+  io.emit("timerUpdate", gameState.timer);
   io.to(drawer.socketId).emit("secretWord", gameState.currentWord);
   io.emit("clearCanvas");
 
@@ -333,8 +335,10 @@ io.on("connection", (socket) => {
             drawerName: drawer.username,
             wordLength: gameState.currentWord.length,
             currentRound: gameState.currentRound,
-            maxRounds: gameState.maxRounds
+            maxRounds: gameState.maxRounds,
+            timer: gameState.timer
           });
+          socket.emit("timerUpdate", gameState.timer);
           if (drawer.username === username) {
             socket.emit("secretWord", gameState.currentWord);
           }
@@ -392,6 +396,10 @@ io.on("connection", (socket) => {
     try {
       if (socket.username) {
         await Jugador.findOneAndUpdate({ username: socket.username }, { online: false });
+        // Remover al jugador de la partida activa si está en progreso
+        if (gameState.inProgress) {
+          gameState.players = gameState.players.filter(p => p.username !== socket.username);
+        }
       }
       const playersOnline = await Jugador.find({ online: true });
       refreshHostIfNeeded(playersOnline);

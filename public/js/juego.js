@@ -53,6 +53,7 @@ socket.on("timerUpdate", (timeLeft) => {
 socket.on("roundStarted", (data) => {
   if (drawerNameDisplay) drawerNameDisplay.textContent = data.drawerName;
   if (gameStatusIndicator) gameStatusIndicator.textContent = `Ronda ${data.currentRound} / ${data.maxRounds}`;
+  if (data.timer !== undefined && timerDisplay) timerDisplay.textContent = data.timer;
 
   if (data.drawerName !== username) {
     if (currentWordDisplay) currentWordDisplay.textContent = "_ ".repeat(data.wordLength).trim();
