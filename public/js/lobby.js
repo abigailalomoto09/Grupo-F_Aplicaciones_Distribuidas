@@ -14,14 +14,23 @@ if (!username) {
   window.location.href = "/";
 }
 
-// ENVIAR AL SERVIDOR
-socket.emit("joinLobby", username);
+// REINGRESAR AL LOBBY DESPUÉS DE UNA RECONEXIÓN
+socket.on("connect", () => {
+  if (username) {
+    socket.emit("joinLobby", username);
+  }
+});
 
 // MANEJAR ERROR DE LOGIN (NOMBRE REPETIDO)
 socket.on("loginError", (mensaje) => {
   alert(mensaje);
   window.location.href = "/";
 });
+
+// SI EL SOCKET YA ESTÁ CONECTADO AL CARGAR LA PÁGINA
+if (socket.connected && username) {
+  socket.emit("joinLobby", username);
+}
 
 
 // RECIBIR JUGADORES
@@ -105,6 +114,41 @@ socket.on("lobbyInfo", (data) => {
       startGameBtn.classList.add('opacity-50');
     }
   }
+
+  // Solo el host puede cambiar la configuración
+  if (username !== host) {
+    if (roundTimeSelect) roundTimeSelect.disabled = true;
+    if (maxRoundsSelect) maxRoundsSelect.disabled = true;
+  } else {
+    if (roundTimeSelect) roundTimeSelect.disabled = false;
+    if (maxRoundsSelect) maxRoundsSelect.disabled = false;
+  }
+});
+
+// SINCRONIZAR CAMBIOS DE CONFIGURACIÓN EN TIEMPO REAL
+if (roundTimeSelect) {
+  roundTimeSelect.addEventListener("change", () => {
+    socket.emit("updateGameConfig", {
+      roundTime: parseInt(roundTimeSelect.value, 10),
+      maxRounds: parseInt(maxRoundsSelect.value, 10)
+    });
+  });
+}
+
+if (maxRoundsSelect) {
+  maxRoundsSelect.addEventListener("change", () => {
+    socket.emit("updateGameConfig", {
+      roundTime: parseInt(roundTimeSelect.value, 10),
+      maxRounds: parseInt(maxRoundsSelect.value, 10)
+    });
+  });
+}
+
+// RECIBIR CAMBIOS DE CONFIGURACIÓN DE OTROS JUGADORES
+socket.on("configUpdated", (config) => {
+  if (roundTimeSelect) roundTimeSelect.value = String(config.roundTime);
+  if (maxRoundsSelect) maxRoundsSelect.value = String(config.maxRounds);
+  console.log("Configuración actualizada:", config);
 });
 
 // ESCUCHAR EVENTO DEL BOTÓN INICIAR PARTIDA
