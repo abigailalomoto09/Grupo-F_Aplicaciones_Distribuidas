@@ -3,6 +3,8 @@ const socket = io();
 const playersContainer = document.getElementById("playersContainer");
 const totalPlayers = document.getElementById("totalPlayers");
 const startGameBtn = document.getElementById("startGameBtn");
+const roundTimeSelect = document.getElementById("roundTime");
+const maxRoundsSelect = document.getElementById("maxRounds");
 
 // OBTENER NOMBRE DE USUARIO (por pestaña)
 const username = sessionStorage.getItem("username");
@@ -74,10 +76,45 @@ socket.on("playersUpdated", (players) => {
   });
 });
 
+// Recibir info de lobby (host + jugadores)
+socket.on("lobbyInfo", (data) => {
+  const { players, host } = data;
+  // Actualizar UI similar a playersUpdated
+  playersContainer.innerHTML = "";
+  totalPlayers.textContent = players.length;
+  players.forEach(player => {
+    const card = document.createElement("div");
+    card.className = `bg-slate-900/30 backdrop-blur-xl border border-white/10 px-8 py-5 rounded-full flex items-center gap-4`;
+    card.innerHTML = `
+      <div class="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center text-black font-black text-2xl">${player.username?.charAt(0)?.toUpperCase() || "?"}</div>
+      <div>
+        <h3 class="text-2xl font-black">${player.username || "Jugador"}</h3>
+        <p class="text-slate-300 text-sm">${player.username === host ? 'Anfitrión' : 'Listo para jugar'}</p>
+      </div>
+    `;
+    playersContainer.appendChild(card);
+  });
+
+  // Solo el host puede iniciar
+  if (startGameBtn) {
+    if (username === host) {
+      startGameBtn.disabled = false;
+      startGameBtn.classList.remove('opacity-50');
+    } else {
+      startGameBtn.disabled = true;
+      startGameBtn.classList.add('opacity-50');
+    }
+  }
+});
+
 // ESCUCHAR EVENTO DEL BOTÓN INICIAR PARTIDA
 if (startGameBtn) {
   startGameBtn.addEventListener("click", () => {
-    socket.emit("requestStartGame");
+    const options = {
+      roundTime: roundTimeSelect ? parseInt(roundTimeSelect.value, 10) : 60,
+      maxRounds: maxRoundsSelect ? parseInt(maxRoundsSelect.value, 10) : 3
+    };
+    socket.emit("requestStartGame", options);
   });
 }
 

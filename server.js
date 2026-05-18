@@ -36,6 +36,7 @@ let gameState = {
   timerInterval: null,
   currentRound: 1,         
   maxRounds: 3,            
+  roundTime: 60,          
   turnCount: 0             
 };
 
@@ -186,7 +187,13 @@ io.on("connection", (socket) => {
       );
       
       const playersOnline = await Jugador.find({ online: true });
+      // assign host if not set
+      if (!gameState.host && playersOnline.length > 0) {
+        gameState.host = playersOnline[0].username;
+      }
+
       io.emit("playersUpdated", playersOnline);
+      io.emit("lobbyInfo", { players: playersOnline, host: gameState.host });
     } catch (error) {
       console.error(error);
     }
@@ -206,28 +213,46 @@ io.on("connection", (socket) => {
     }
   });
 
-  // INICIAR PARTIDA (ENTRE 2 Y 4 JUGADORES)
-  socket.on("requestStartGame", async () => {
-    let playersOnline = await Jugador.find({ online: true });
-    
-    if (playersOnline.length < 2 || playersOnline.length > 4) {
-      return socket.emit("chat", { username: "SISTEMA", text: "⚠️ Se necesitan entre 2 y 4 jugadores para iniciar." });
+  // INICIAR PARTIDA (mínimo 3 jugadores, máximo 4)
+  socket.on("requestStartGame", async (options = {}) => {
+    try {
+      // only host can start
+      if (!socket.username || socket.username !== gameState.host) {
+        return socket.emit('chat', { username: 'SISTEMA', text: 'Solo el anfitrión puede iniciar la partida.' });
+      }
+
+      let playersOnline = await Jugador.find({ online: true });
+      const minPlayers = 3;
+      const maxPlayers = 4;
+
+      if (playersOnline.length < minPlayers || playersOnline.length > maxPlayers) {
+        return socket.emit("chat", { username: "SISTEMA", text: `⚠️ Se necesitan entre ${minPlayers} y ${maxPlayers} jugadores para iniciar.` });
+      }
+
+      // Apply options
+      const roundTime = parseInt(options.roundTime, 10) || gameState.roundTime || 60;
+      const maxRounds = parseInt(options.maxRounds, 10) || gameState.maxRounds || 3;
+
+      playersOnline = mezclarJugadores(playersOnline);
+
+      gameState.inProgress = true;
+      gameState.currentRound = 1;
+      gameState.turnCount = 0;
+      gameState.currentDrawerIndex = 0;
+      gameState.roundTime = roundTime;
+      gameState.maxRounds = maxRounds;
+      gameState.currentWord = "";
+
+      gameState.players = playersOnline.map(p => ({ username: p.username, socketId: p.socketId }));
+
+      io.emit("redirectToGame");
+
+      setTimeout(() => {
+        startRound();
+      }, 3500);
+    } catch (err) {
+      console.error('Error starting game:', err);
     }
-
-    playersOnline = mezclarJugadores(playersOnline);
-
-    gameState.inProgress = true;
-    gameState.currentRound = 1;
-    gameState.turnCount = 0;
-    gameState.currentDrawerIndex = 0;
-    
-    gameState.players = playersOnline.map(p => ({ username: p.username, socketId: p.socketId }));
-
-    io.emit("redirectToGame");
-
-    setTimeout(() => {
-      startRound();
-    }, 3500);
   });
 
   // SINCRONIZACIÓN DE LA PANTALLA DE JUEGO
@@ -286,12 +311,18 @@ io.on("connection", (socket) => {
       if (gameState.inProgress && mensajeLimpio === gameState.currentWord) {
         const jugador = await Jugador.findOne({ username: username });
         if (jugador) {
-          jugador.score = (jugador.score || 0) + 100;
+          // Calculate points based on remaining time
+          const maxTime = gameState.roundTime || 60;
+          const timeLeft = Math.max(0, gameState.timer);
+          let points = Math.ceil(100 * (timeLeft / maxTime));
+          if (points < 10) points = 10;
+
+          jugador.score = (jugador.score || 0) + points;
           await jugador.save();
 
           io.emit("chat", { 
             username: "SISTEMA", 
-            text: `🎉 ¡${username} ha adivinado la palabra! (+100 pts)` 
+            text: `🎉 ¡${username} ha adivinado la palabra! (+${points} pts)` 
           });
 
           const playersOnline = await Jugador.find({ online: true });
