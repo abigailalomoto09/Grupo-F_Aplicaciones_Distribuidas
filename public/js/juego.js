@@ -1,7 +1,8 @@
 const socket = io();
 const username = sessionStorage.getItem("username");
+const token = sessionStorage.getItem("token");
 
-if (!username) {
+if (!username || !token) {
   window.location.href = "/";
 }
 

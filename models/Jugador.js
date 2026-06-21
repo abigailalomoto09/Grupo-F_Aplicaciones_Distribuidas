@@ -6,6 +6,15 @@ const JugadorSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  correo: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  contrasenia: {
+    type: String,
+    required: true
+  },
   socketId: {
     type: String,
     default: ""
@@ -25,3 +34,4 @@ const JugadorSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Jugador", JugadorSchema);
+

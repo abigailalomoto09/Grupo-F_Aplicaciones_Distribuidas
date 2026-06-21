@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>DrawBattle</title>
+    <title>DrawBattle - Acceso</title>
 
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,44 +20,108 @@
     <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
 
     <!-- CONTENEDOR -->
-    <div class="relative z-10">
+    <div class="relative z-10 w-full max-w-[500px] px-4">
 
         <!-- TARJETA -->
-        <div class="w-full max-w-[550px] bg-slate-900/40 backdrop-blur-xl border border-cyan-400/30 rounded-[35px] p-6 sm:p-10 shadow-[0_0_40px_rgba(34,211,238,0.25)]">
+        <div class="bg-slate-900/50 backdrop-blur-xl border border-cyan-400/30 rounded-[35px] p-6 sm:p-10 shadow-[0_0_40px_rgba(34,211,238,0.25)]">
 
             <!-- TITULO -->
             <h1
-                class="text-7xl font-black text-cyan-400 text-center mb-4 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]"
+                class="text-6xl font-black text-cyan-400 text-center mb-2 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]"
             >
                 DrawBattle
             </h1>
 
             <!-- SUBTITULO -->
-            <p class="text-slate-200 text-center text-xl mb-10 font-medium tracking-wide">
+            <p class="text-slate-300 text-center text-lg mb-8 font-medium tracking-wide">
                 El caos empieza con un lápiz.
             </p>
 
-            <!-- MENSAJE DE ERROR -->
-            <div id="error-message" class="hidden bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-xl mb-6 text-center text-sm font-medium">
-            </div>
-
-            <!-- CAMPO PARA ESCRIBIR EL NOMBRE -->
-            <div class="space-y-6">
-                <input
-                    type="text"
-                    id="username"
-                    placeholder="Ingresa tu nombre"
-                    class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-6 py-5 text-lg text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
-                >
-
-                <!-- BOTON -->
-                <button
-                    id="BtnIngresar"
-                    class="w-full bg-cyan-400 hover:bg-cyan-300 transition-all duration-300 text-black font-black py-5 rounded-2xl text-xl shadow-[0_0_25px_rgba(34,211,238,0.6)] hover:scale-[1.02]"
-                >
-                    Entrar al Lobby
+            <!-- PESTAÑAS (TABS) -->
+            <div class="flex border-b border-cyan-400/20 mb-6 text-center">
+                <button id="tabLogin" class="flex-1 pb-3 text-lg font-black text-cyan-400 border-b-2 border-cyan-400 transition-all duration-300">
+                    Iniciar Sesión
+                </button>
+                <button id="tabRegister" class="flex-1 pb-3 text-lg font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-all duration-300">
+                    Registrarse
                 </button>
             </div>
+
+            <!-- MENSAJES DE RESPUESTA -->
+            <div id="errorMsg" class="hidden bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-xl mb-6 text-center text-sm font-medium animate-pulse">
+            </div>
+            <div id="successMsg" class="hidden bg-emerald-500/20 border border-emerald-500 text-emerald-200 px-4 py-3 rounded-xl mb-6 text-center text-sm font-medium">
+            </div>
+
+            <!-- FORMULARIO DE INICIO DE SESIÓN -->
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-cyan-400 mb-2">Correo Electrónico</label>
+                    <input
+                        type="email"
+                        id="loginEmail"
+                        placeholder="ejemplo@correo.com"
+                        required
+                        class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-5 py-4 text-base text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-cyan-400 mb-2">Contraseña</label>
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        placeholder="••••••••"
+                        required
+                        class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-5 py-4 text-base text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all"
+                    >
+                </div>
+                <button
+                    type="submit"
+                    class="w-full bg-cyan-400 hover:bg-cyan-300 transition-all duration-300 text-black font-black py-4 rounded-2xl text-lg shadow-[0_0_20px_rgba(34,211,238,0.5)] hover:scale-[1.02] mt-4"
+                >
+                    Ingresar
+                </button>
+            </form>
+
+            <!-- FORMULARIO DE REGISTRO -->
+            <form id="registerForm" class="hidden space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-cyan-400 mb-2">Nombre de Usuario</label>
+                    <input
+                        type="text"
+                        id="registerUsername"
+                        placeholder="Tu apodo en el juego"
+                        required
+                        class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-5 py-4 text-base text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-cyan-400 mb-2">Correo Electrónico</label>
+                    <input
+                        type="email"
+                        id="registerEmail"
+                        placeholder="ejemplo@correo.com"
+                        required
+                        class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-5 py-4 text-base text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-cyan-400 mb-2">Contraseña</label>
+                    <input
+                        type="password"
+                        id="registerPassword"
+                        placeholder="Crea una contraseña"
+                        required
+                        class="w-full bg-slate-900/70 border border-cyan-400/30 rounded-2xl px-5 py-4 text-base text-white outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all"
+                    >
+                </div>
+                <button
+                    type="submit"
+                    class="w-full bg-cyan-400 hover:bg-cyan-300 transition-all duration-300 text-black font-black py-4 rounded-2xl text-lg shadow-[0_0_20px_rgba(34,211,238,0.5)] hover:scale-[1.02] mt-4"
+                >
+                    Registrar Jugador
+                </button>
+            </form>
         </div>
     </div>
     <script src="/socket.io/socket.io.js"></script>

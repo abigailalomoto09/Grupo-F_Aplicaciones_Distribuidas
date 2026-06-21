@@ -6,11 +6,12 @@ const startGameBtn = document.getElementById("startGameBtn");
 const roundTimeSelect = document.getElementById("roundTime");
 const maxRoundsSelect = document.getElementById("maxRounds");
 
-// OBTENER NOMBRE DE USUARIO (por pestaña)
+// OBTENER NOMBRE DE USUARIO Y TOKEN (por pestaña)
 const username = sessionStorage.getItem("username");
+const token = sessionStorage.getItem("token");
 
-// SI NO EXISTE USUARIO
-if (!username) {
+// SI NO EXISTE USUARIO O TOKEN
+if (!username || !token) {
   window.location.href = "/";
 }
 
