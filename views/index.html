@@ -23,7 +23,7 @@
     <div class="relative z-10">
 
         <!-- TARJETA -->
-        <div class="w-[550px] bg-slate-900/40 backdrop-blur-xl border border-cyan-400/30 rounded-[35px] p-10 shadow-[0_0_40px_rgba(34,211,238,0.25)]">
+        <div class="w-full max-w-[550px] bg-slate-900/40 backdrop-blur-xl border border-cyan-400/30 rounded-[35px] p-6 sm:p-10 shadow-[0_0_40px_rgba(34,211,238,0.25)]">
 
             <!-- TITULO -->
             <h1
@@ -36,6 +36,10 @@
             <p class="text-slate-200 text-center text-xl mb-10 font-medium tracking-wide">
                 El caos empieza con un lápiz.
             </p>
+
+            <!-- MENSAJE DE ERROR -->
+            <div id="error-message" class="hidden bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-xl mb-6 text-center text-sm font-medium">
+            </div>
 
             <!-- CAMPO PARA ESCRIBIR EL NOMBRE -->
             <div class="space-y-6">
@@ -56,6 +60,7 @@
             </div>
         </div>
     </div>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="/js/index.js"></script>
 </body>
 
