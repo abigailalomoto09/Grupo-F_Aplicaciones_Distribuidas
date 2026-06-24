@@ -123,3 +123,13 @@ if (startGameBtn) {
 socket.on("redirectToGame", () => {
     window.location.href = "/game";
 });
+
+// Salir del lobby
+const exitLobbyBtn = document.getElementById("exitLobbyBtn");
+if (exitLobbyBtn) {
+    exitLobbyBtn.addEventListener("click", () => {
+        sessionStorage.clear();
+        localStorage.removeItem("token");
+        window.location.href = "/auth/logout";
+    });
+}
