@@ -26,8 +26,6 @@ const {
 } = require("./logger");
 const httpLoggerMiddleware = require("./logger/morganMiddleware");
 
-dotenv.config();
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -43,12 +41,14 @@ conectarDB().then(async () => {
 });
 
 app.use(httpLoggerMiddleware);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 // sesiones de usuario y autenticación
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "default_session_secret_drawbattle",
     resave: false,
     saveUninitialized: false
   })
@@ -59,15 +59,16 @@ app.use(passport.session());
 
 app.use("/logs", logsRoutes);
 app.use("/auth", authRoutes);
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "views", "index.html")));
-app.get("/lobby", (req, res) => {
 
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "views", "index.html")));
+
+app.get("/lobby", (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect("/");
   }
-
   res.sendFile(path.join(__dirname, "views", "lobby.html"));
 });
+
 app.get("/game", (req, res) => res.sendFile(path.join(__dirname, "views", "juego.html")));
 app.get("/logs-view", (req, res) => res.sendFile(path.join(__dirname, "views", "logs.html")));
 
