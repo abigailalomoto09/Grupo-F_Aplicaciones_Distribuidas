@@ -1,78 +1,65 @@
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const { logger } = require('../logger');
 
+// Se crea el router para agrupar las rutas relacionadas con logs.
 const router = express.Router();
+// Se define la carpeta donde se almacenan los archivos de log.
+const logsDir = path.join(__dirname, '..', 'logs');
 
-router.get("/resumen", (req, res) => {
-  try {
-    const logsDir = path.join(__dirname, "..", "logs");
-    const files = fs.readdirSync(logsDir);
+// Ruta GET /logs/resumen para devolver un resumen del archivo de log más reciente.
+router.get('/resumen', (req, res) => {
+    try {
+        // Se listan los archivos dentro de /logs y se filtran solo los .log.
+        const files = fs.readdirSync(logsDir)
+            .filter(file => file.endsWith('.log'))
+            // Se obtiene la ruta y la fecha de modificación de cada archivo.
+            .map(file => {
+                const filePath = path.join(logsDir, file);
+                const stats = fs.statSync(filePath);
 
-    const logFiles = files
-      .filter((file) => file.endsWith(".log"))
-      .map((file) => {
-        const filePath = path.join(logsDir, file);
-        const stats = fs.statSync(filePath);
+                return {
+                    name: file,
+                    path: filePath,
+                    lastModified: stats.mtime
+                };
+            })
+            // Se ordenan del más reciente al más antiguo.
+            .sort((a, b) => b.lastModified - a.lastModified);
 
-        return {
-          file,
-          filePath,
-          mtimeMs: stats.mtimeMs
-        };
-      })
-      .sort((a, b) => b.mtimeMs - a.mtimeMs);
+        // Si no hay archivos de log, se responde con un error controlado.
+        if (files.length === 0) {
+            logger.warn('No existen archivos de log para resumir');
+            return res.status(404).json({ mensaje: 'No existen archivos de log' });
+        }
 
-    if (logFiles.length === 0) {
-      return res.json({});
+        // Se toma el archivo más reciente para analizar su contenido.
+        const latestLog = files[0];
+        // Se lee el archivo completo como texto.
+        const content = fs.readFileSync(latestLog.path, 'utf8');
+        // Se inicializa el objeto que almacenará el conteo por nivel de log.
+        const resumen = {};
+
+        // Se recorre cada línea del archivo para identificar el tipo de log.
+        content.split('\n').forEach(line => {
+            const match = line.match(/\[(\w+)\]:/);
+
+            // Si la línea contiene un nivel válido, se incrementa su contador.
+            if (match) {
+                const level = match[1];
+                resumen[level] = (resumen[level] || 0) + 1;
+            }
+        });
+
+        // Se registra en el logger qué archivo se usó para construir el resumen.
+        logger.info(`Resumen generado desde el archivo: ${latestLog.name}`);
+        // Se devuelve el resumen final en formato JSON.
+        res.json(resumen);
+    } catch (error) {
+        logger.error(`Error al generar el resumen de logs: ${error.message}`);
+        res.status(500).json({ mensaje: 'Error al generar el resumen de logs' });
     }
-
-    const latestLogPath = logFiles[0].filePath;
-    const content = fs.readFileSync(latestLogPath, "utf-8");
-    const lines = content.split("\n").filter(Boolean);
-
-    const resumen = {
-      INFO: 0,
-      ERROR: 0,
-      WARN: 0,
-      DEBUG: 0,
-      TRACE: 0,
-      FATAL: 0,
-      HTTP: 0
-    };
-
-    lines.forEach((line) => {
-      let parsedLine = null;
-
-      try {
-        parsedLine = JSON.parse(line);
-      } catch (error) {
-        parsedLine = null;
-      }
-
-      if (parsedLine && parsedLine.level) {
-        const level = String(parsedLine.level).toUpperCase();
-        if (Object.prototype.hasOwnProperty.call(resumen, level)) {
-          resumen[level]++;
-        }
-        return;
-      }
-
-      const match = line.match(/\[(TRACE|DEBUG|INFO|WARN|ERROR|FATAL|HTTP)\]/i);
-      if (match) {
-        const level = match[1].toUpperCase();
-        if (Object.prototype.hasOwnProperty.call(resumen, level)) {
-          resumen[level]++;
-        }
-      }
-    });
-
-    res.json(resumen);
-  } catch (error) {
-    res.status(500).json({
-      error: "No fue posible generar el resumen de logs."
-    });
-  }
 });
 
 module.exports = router;

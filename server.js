@@ -21,10 +21,9 @@ const {
   warn,
   error: logError,
   fatal,
-  getLogSummary,
-  getRecentLogs
+  logger
 } = require("./logger");
-const httpLoggerMiddleware = require("./logger/morganMiddleware");
+const morganMiddleware = require("./logger/morganMiddleware");
 
 const app = express();
 const server = http.createServer(app);
@@ -40,7 +39,7 @@ conectarDB().then(async () => {
   process.exit(1);
 });
 
-app.use(httpLoggerMiddleware);
+app.use(morganMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
@@ -70,49 +69,37 @@ app.get("/lobby", (req, res) => {
 });
 
 app.get("/game", (req, res) => res.sendFile(path.join(__dirname, "views", "juego.html")));
-app.get("/logs-view", (req, res) => res.sendFile(path.join(__dirname, "views", "logs.html")));
 
-app.get("/api/logs/demo", async (req, res) => {
-  try {
-    trace("LOG_DEMO", "Evento de prueba TRACE");
-    debug("LOG_DEMO", "Evento de prueba DEBUG");
-    info("LOG_DEMO", "Evento de prueba INFO");
-    warn("LOG_DEMO", "Evento de prueba WARN");
-    logError("LOG_DEMO", "Evento de prueba ERROR");
-    fatal("LOG_DEMO", "Evento de prueba FATAL");
-
-    res.json({ ok: true, message: "Se generaron logs de prueba en todos los niveles." });
-  } catch (err) {
-    logError("LOG_DEMO", "No se pudieron generar los logs de prueba", { message: err.message });
-    res.status(500).json({ ok: false });
-  }
-});
-
-app.get("/api/logs/summary", async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit, 10) || 25;
-    const summary = await getLogSummary({ limit });
-    res.json(summary);
-  } catch (err) {
-    logError("LOGS_API", "Error al obtener el resumen de logs", { message: err.message });
-    res.status(500).json({ error: "No fue posible obtener el resumen de logs." });
-  }
-});
-
-app.get("/api/logs/recent", async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit, 10) || 100;
-    const level = req.query.level;
-    const logs = await getRecentLogs({ limit, level });
-    res.json(logs);
-  } catch (err) {
-    logError("LOGS_API", "Error al obtener los logs recientes", { message: err.message });
-    res.status(500).json({ error: "No fue posible obtener los logs recientes." });
-  }
-});
-
-// --- VARIABLES DE CONTROL INTERNO DEL JUEGO ---
 const PALABRAS = ["PERRO", "GATO", "CASA", "ARBOL", "COCHE", "SOL", "LAPIZ", "LUNA"];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 let gameState = {
   inProgress: false,
   players: [],             // [{username, socketId}]
@@ -606,6 +593,18 @@ io.on("connection", (socket) => {
       logError("DISCONNECT", "Error al procesar la desconexión", { message: error.message });
     }
   });
+});
+
+// Middleware para manejar rutas no encontradas (404)
+app.use((req, res) => {
+  logger.warn(`404 - Ruta no encontrada: ${req.originalUrl}`);
+  res.status(404).send('Ruta no encontrada');
+});
+
+// Middleware para manejar errores no controlados (500)
+app.use((error, req, res, next) => {
+  logger.error(`Error no controlado: ${error.message}`);
+  res.status(500).send('Error interno del servidor');
 });
 
 const PORT = process.env.PORT || 3000;
