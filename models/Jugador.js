@@ -9,8 +9,7 @@ const JugadorSchema = new mongoose.Schema({
   googleId: {
     type: String,
     unique: true,
-    sparse: true,
-    default: null
+    sparse: true
   },
   email: {
     type: String,
