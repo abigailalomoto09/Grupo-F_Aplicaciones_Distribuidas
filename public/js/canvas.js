@@ -1,8 +1,8 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 let isDrawing = false;
+let activePointerId = null;
 
-// Make canvas responsive to its container and handle devicePixelRatio for crisp rendering
 function resizeCanvas() {
   const container = canvas.parentElement;
   if (!container) return;
@@ -11,50 +11,87 @@ function resizeCanvas() {
   const width = Math.floor(container.clientWidth);
   const height = Math.floor(container.clientHeight);
 
-  // Set display size (css pixels).
-  canvas.style.width = width + 'px';
-  canvas.style.height = height + 'px';
+  if (width <= 0 || height <= 0) return;
 
-  // Set actual size in memory (scaled for DPR)
+  const previousWidth = canvas.width;
+  const previousHeight = canvas.height;
+  const snapshot = document.createElement("canvas");
+
+  if (previousWidth > 0 && previousHeight > 0) {
+    snapshot.width = previousWidth;
+    snapshot.height = previousHeight;
+    snapshot.getContext("2d").drawImage(canvas, 0, 0);
+  }
+
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+
   canvas.width = Math.floor(width * dpr);
   canvas.height = Math.floor(height * dpr);
 
-  // Reset transform and scale to DPR
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
-
-  // Re-apply drawing defaults (line width will be in CSS pixels)
-  ctx.lineWidth = Math.max(2, 3);
+  ctx.lineWidth = 3;
   ctx.lineCap = "round";
-  ctx.strokeStyle = ctx.strokeStyle || "#000000";
+  ctx.strokeStyle = "#000000";
 
-  // Clear to avoid stretching previous content
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, width, height);
+
+  if (snapshot.width > 0 && snapshot.height > 0) {
+    ctx.drawImage(
+      snapshot,
+      0,
+      0,
+      snapshot.width,
+      snapshot.height,
+      0,
+      0,
+      width,
+      height
+    );
+  }
 }
 
-window.addEventListener('resize', () => {
+const container = canvas.parentElement;
+if (container && "ResizeObserver" in window) {
+  const resizeObserver = new ResizeObserver(() => {
+    resizeCanvas();
+  });
+  resizeObserver.observe(container);
+}
+
+window.addEventListener("resize", () => {
   resizeCanvas();
 });
 
-// Initial resize
 resizeCanvas();
 
-window.canDraw = false; // Control de seguridad compartido por juego.js
+window.canDraw = false;
+canvas.style.touchAction = "none";
 
-// Ajustes de dibujo
 ctx.lineWidth = 3;
 ctx.lineCap = "round";
 ctx.strokeStyle = "#000000";
 
-// Capturar eventos de ratón
-canvas.addEventListener("mousedown", startDrawing);
-canvas.addEventListener("mousemove", draw);
-canvas.addEventListener("mouseup", stopDrawing);
-canvas.addEventListener("mouseout", stopDrawing);
+canvas.addEventListener("pointerdown", startDrawing);
+canvas.addEventListener("pointermove", draw);
+canvas.addEventListener("pointerup", stopDrawing);
+canvas.addEventListener("pointercancel", stopDrawing);
+canvas.addEventListener("pointerleave", stopDrawing);
 
 function startDrawing(e) {
   if (!window.canDraw) return;
   isDrawing = true;
+  activePointerId = e.pointerId;
+
+  if (canvas.setPointerCapture && activePointerId !== null) {
+    try {
+      canvas.setPointerCapture(activePointerId);
+    } catch (err) {
+      // Ignore capture failures; drawing still works without it.
+    }
+  }
+
   draw(e);
 }
 
@@ -65,13 +102,11 @@ function draw(e) {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  // Dibujar localmente
   ctx.lineTo(x, y);
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(x, y);
 
-  // Emitir al servidor
   socket.emit("draw", {
     x,
     y,
@@ -81,16 +116,24 @@ function draw(e) {
   });
 }
 
-function stopDrawing() {
+function stopDrawing(e) {
   if (!isDrawing) return;
   isDrawing = false;
+
+  if (canvas.releasePointerCapture && activePointerId !== null) {
+    try {
+      canvas.releasePointerCapture(activePointerId);
+    } catch (err) {
+      // Ignore capture failures.
+    }
+  }
+
+  activePointerId = null;
   ctx.beginPath();
-  
-  // Emitir fin de trazo
+
   socket.emit("draw", { type: "stop" });
 }
 
-// Escuchar dibujos de otros
 socket.on("draw", (data) => {
   if (data.type === "drawing") {
     ctx.strokeStyle = data.color;
@@ -104,7 +147,6 @@ socket.on("draw", (data) => {
   }
 });
 
-// Limpiar canvas
 socket.on("clearCanvas", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 });

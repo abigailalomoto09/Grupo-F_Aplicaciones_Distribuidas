@@ -42,13 +42,13 @@ if (chatForm) {
 socket.on("chat", (data) => {
   const msgDiv = document.createElement("div");
   if (data.username === "SISTEMA") {
-    msgDiv.className = "bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/30 text-cyan-400 font-bold text-sm text-center animate-pulse";
+    msgDiv.className = "bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/30 text-cyan-400 font-bold text-sm text-center animate-pulse break-words";
     msgDiv.innerHTML = `<span>${data.text}</span>`;
   } else {
     const nombre = primerNombre(data.username);
-    msgDiv.className = "bg-slate-800/60 p-3 rounded-xl border border-slate-700/50 text-sm flex flex-col";
+    msgDiv.className = "bg-slate-800/60 p-3 rounded-xl border border-slate-700/50 text-sm flex flex-col break-words";
     msgDiv.innerHTML = `
-      <div>
+      <div class="break-words">
         <span class="font-black text-cyan-400">${nombre}:</span>
         <span class="ml-1 text-slate-200">${data.text}</span>
       </div>`;
@@ -104,13 +104,13 @@ socket.on("updateScoreboard", (players) => {
     const esTuyo = p.username === username;
 
     const row = document.createElement("div");
-    row.className = "flex items-center justify-between bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 transition-all";
+    row.className = "flex items-center justify-between gap-3 bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 transition-all";
     row.innerHTML = `
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 min-w-0">
         <div class="w-8 h-8 rounded-full bg-cyan-500 text-black font-black flex items-center justify-center text-sm">
           ${nombre.charAt(0).toUpperCase()}
         </div>
-        <span class="font-bold ${esTuyo ? "text-cyan-400 underline font-black" : "text-slate-100"}">${nombre}</span>
+        <span class="font-bold ${esTuyo ? "text-cyan-400 underline font-black" : "text-slate-100"} break-words">${nombre}</span>
       </div>
       <span class="text-cyan-400 font-black">${p.score || 0} pts</span>
     `;
