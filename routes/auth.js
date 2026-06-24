@@ -51,7 +51,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// 2. Login tradicional (Establece sesión web y también devuelve un token JWT para la API REST)
+// 2. Login(Establece sesión web y también devuelve un token JWT para la API REST)
 router.post("/login", async (req, res) => {
   try {
     const { usernameOrEmail, correo, email, contrasenia } = req.body || {};
