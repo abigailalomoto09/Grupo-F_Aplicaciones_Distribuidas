@@ -3,8 +3,21 @@ const mongoose = require("mongoose");
 const JugadorSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true,
-    unique: true
+    required: true
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    default: null
+  },
+  email: {
+    type: String,
+    default: null
+  },
+  photo: {
+    type: String,
+    default: null
   },
   socketId: {
     type: String,

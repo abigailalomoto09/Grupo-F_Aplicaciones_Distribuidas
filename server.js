@@ -2,11 +2,18 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const dotenv = require("dotenv");
+dotenv.config();
 const path = require("path");
+const session = require("express-session");
+const passport = require("passport");
+
+require("./auth");
 
 const conectarDB = require("./db");
 const Jugador = require("./models/Jugador");
 const logsRoutes = require("./routes/logs");
+const authRoutes = require("./routes/auth");
+
 const {
   trace,
   info,
@@ -32,16 +39,37 @@ conectarDB().then(async () => {
   info("SERVER_START", "Servidor listo para recibir conexiones");
 }).catch((err) => {
   fatal("DB_CONNECTION", "No fue posible conectar a MongoDB", { message: err.message });
+  process.exit(1);
 });
 
 app.use(httpLoggerMiddleware);
 app.use(express.static("public"));
-app.use("/logs", logsRoutes);
 
+// sesiones de usuario y autenticación
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use("/logs", logsRoutes);
+app.use("/auth", authRoutes);
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "views", "index.html")));
-app.get("/lobby", (req, res) => res.sendFile(path.join(__dirname, "views", "lobby.html")));
+app.get("/lobby", (req, res) => {
+
+  if (!req.isAuthenticated()) {
+    return res.redirect("/");
+  }
+
+  res.sendFile(path.join(__dirname, "views", "lobby.html"));
+});
 app.get("/game", (req, res) => res.sendFile(path.join(__dirname, "views", "juego.html")));
-app.get("/logs", (req, res) => res.sendFile(path.join(__dirname, "views", "logs.html")));
+app.get("/logs-view", (req, res) => res.sendFile(path.join(__dirname, "views", "logs.html")));
 
 app.get("/api/logs/demo", async (req, res) => {
   try {
@@ -106,6 +134,14 @@ function mezclarJugadores(lista) {
 }
 
 async function startRound() {
+  // Verificar jugadores activos ANTES de todo lo demás
+  const activePlayers = gameState.players.filter(p => p.socketId);
+  if (activePlayers.length === 0) {
+    warn("ROUND_SKIP", "No hay jugadores activos con socket, terminando partida");
+    await endGame();
+    return;
+  }
+
   if (gameState.players.length === 0) {
     gameState.inProgress = false;
     clearInterval(gameState.timerInterval);
@@ -134,7 +170,7 @@ async function startRound() {
       currentRound: gameState.currentRound,
       turnCount: gameState.turnCount
     });
-    startRound();
+    setTimeout(() => startRound(), 0);
     return;
   }
 
