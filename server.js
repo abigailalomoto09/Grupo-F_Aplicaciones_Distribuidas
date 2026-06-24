@@ -197,18 +197,22 @@ async function startRound() {
   }, 1000);
 }
 
-function endRound(reason) {
+function endRound(reason, wordToReveal) {
   clearInterval(gameState.timerInterval);
+  const word = wordToReveal || gameState.currentWord;
+
   info("ROUND_END", "La ronda terminó", {
     reason,
-    currentWord: gameState.currentWord,
+    currentWord: word,
     currentRound: gameState.currentRound
   });
   
   io.emit("chat", { 
     username: "SISTEMA", 
-    text: `La ronda ha terminado. Razón: ${reason}. La palabra era: ${gameState.currentWord}` 
+    text: `La ronda ha terminado. Razón: ${reason}. La palabra era: ${word}` 
   });
+  
+  gameState.currentWord = ""; // Asegura que la palabra quede limpia para el timeout de 4 segundos
   
   gameState.turnCount++;
   gameState.currentDrawerIndex = (gameState.currentDrawerIndex + 1) % gameState.players.length;
@@ -557,8 +561,9 @@ io.on("connection", (socket) => {
 
           await emitScoreboard();
 
+          const wordToReveal = gameState.currentWord;
           gameState.currentWord = ""; // Evita que otros jugadores adivinen la misma palabra repetidas veces
-          endRound(`Adivinado por ${username}`);
+          endRound(`Adivinado por ${username}`, wordToReveal);
         }
       } else {
         io.emit("chat", { username: username, text: msgData.text });
