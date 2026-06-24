@@ -86,6 +86,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const data = await res.json();
 
             if (res.ok && data.success) {
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                }
                 showAlert("¡Sesión iniciada con éxito! Redirigiendo...", true);
                 setTimeout(() => {
                     window.location.href = data.redirect;
