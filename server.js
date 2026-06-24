@@ -6,6 +6,18 @@ const path = require("path");
 
 const conectarDB = require("./db");
 const Jugador = require("./models/Jugador");
+const logsRoutes = require("./routes/logs");
+const {
+  trace,
+  info,
+  debug,
+  warn,
+  error: logError,
+  fatal,
+  getLogSummary,
+  getRecentLogs
+} = require("./logger");
+const httpLoggerMiddleware = require("./logger/morganMiddleware");
 
 dotenv.config();
 
@@ -17,13 +29,58 @@ conectarDB().then(async () => {
   // Limpieza absoluta al arrancar el servidor
   await Jugador.updateMany({}, { online: false, score: 0, socketId: "" });
   console.log("Servidor listo para recibir conexiones.");
+  info("SERVER_START", "Servidor listo para recibir conexiones");
+}).catch((err) => {
+  fatal("DB_CONNECTION", "No fue posible conectar a MongoDB", { message: err.message });
 });
 
+app.use(httpLoggerMiddleware);
 app.use(express.static("public"));
+app.use("/logs", logsRoutes);
 
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "views", "index.html")));
 app.get("/lobby", (req, res) => res.sendFile(path.join(__dirname, "views", "lobby.html")));
 app.get("/game", (req, res) => res.sendFile(path.join(__dirname, "views", "juego.html")));
+app.get("/logs", (req, res) => res.sendFile(path.join(__dirname, "views", "logs.html")));
+
+app.get("/api/logs/demo", async (req, res) => {
+  try {
+    trace("LOG_DEMO", "Evento de prueba TRACE");
+    debug("LOG_DEMO", "Evento de prueba DEBUG");
+    info("LOG_DEMO", "Evento de prueba INFO");
+    warn("LOG_DEMO", "Evento de prueba WARN");
+    logError("LOG_DEMO", "Evento de prueba ERROR");
+    fatal("LOG_DEMO", "Evento de prueba FATAL");
+
+    res.json({ ok: true, message: "Se generaron logs de prueba en todos los niveles." });
+  } catch (err) {
+    logError("LOG_DEMO", "No se pudieron generar los logs de prueba", { message: err.message });
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.get("/api/logs/summary", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 25;
+    const summary = await getLogSummary({ limit });
+    res.json(summary);
+  } catch (err) {
+    logError("LOGS_API", "Error al obtener el resumen de logs", { message: err.message });
+    res.status(500).json({ error: "No fue posible obtener el resumen de logs." });
+  }
+});
+
+app.get("/api/logs/recent", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 100;
+    const level = req.query.level;
+    const logs = await getRecentLogs({ limit, level });
+    res.json(logs);
+  } catch (err) {
+    logError("LOGS_API", "Error al obtener los logs recientes", { message: err.message });
+    res.status(500).json({ error: "No fue posible obtener los logs recientes." });
+  }
+});
 
 // --- VARIABLES DE CONTROL INTERNO DEL JUEGO ---
 const PALABRAS = ["PERRO", "GATO", "CASA", "ARBOL", "COCHE", "SOL", "LAPIZ", "LUNA"];
@@ -52,6 +109,7 @@ async function startRound() {
   if (gameState.players.length === 0) {
     gameState.inProgress = false;
     clearInterval(gameState.timerInterval);
+    warn("ROUND_SKIP", "La ronda no pudo iniciar porque no hay jugadores activos");
     return;
   }
 
@@ -72,6 +130,10 @@ async function startRound() {
   if (!drawer || !drawer.socketId) {
     gameState.turnCount++;
     gameState.currentDrawerIndex = (gameState.currentDrawerIndex + 1) % gameState.players.length;
+    debug("ROUND_DRAWER_SKIP", "Se omitió un dibujante sin socket activo", {
+      currentRound: gameState.currentRound,
+      turnCount: gameState.turnCount
+    });
     startRound();
     return;
   }
@@ -80,6 +142,11 @@ async function startRound() {
   gameState.timer = gameState.roundTime || 60;
 
   console.log(`Jugando: Ronda ${gameState.currentRound}/${gameState.maxRounds}. Dibujante: ${drawer.username}. Tiempo por ronda: ${gameState.timer}s`);
+  info("ROUND_START", `Ronda ${gameState.currentRound}/${gameState.maxRounds} iniciada`, {
+    drawer: drawer.username,
+    timer: gameState.timer,
+    players: gameState.players.length
+  });
 
   io.emit("roundStarted", {
     drawerId: drawer.socketId,
@@ -108,6 +175,11 @@ async function startRound() {
 
 function endRound(reason) {
   clearInterval(gameState.timerInterval);
+  info("ROUND_END", "La ronda terminó", {
+    reason,
+    currentWord: gameState.currentWord,
+    currentRound: gameState.currentRound
+  });
   
   io.emit("chat", { 
     username: "SISTEMA", 
@@ -137,6 +209,11 @@ async function endGame() {
       ganadorTexto = `¡El ganador de la partida es ${finalPlayers[0].username} con ${finalPlayers[0].score || 0} pts!`;
     }
 
+    info("GAME_END", "La partida finalizó", {
+      winner: finalPlayers[0] ? finalPlayers[0].username : "sin ganador",
+      totalPlayers: finalPlayers.length
+    });
+
     io.emit("gameEnded", {
       ganador: ganadorTexto,
       players: finalPlayers
@@ -151,6 +228,7 @@ async function endGame() {
     await Jugador.updateMany({}, { score: 0 }); 
   } catch (err) {
     console.error("Error al finalizar la partida:", err);
+    logError("GAME_END", "Error al finalizar la partida", { message: err.message });
   }
 }
 
@@ -169,6 +247,7 @@ async function clearGameStateIfLobbyEmpty() {
       clearInterval(gameState.timerInterval);
       gameState.timerInterval = null;
     }
+    info("LOBBY_EMPTY", "Se limpió el estado porque no quedaron jugadores conectados");
   }
 }
 
@@ -209,28 +288,35 @@ async function emitScoreboard() {
 
 // --- MANEJO DE SOCKETS ---
 io.on("connection", (socket) => {
+  trace("SOCKET_CONNECT", "Se conectó un cliente", { socketId: socket.id });
 
   // FILTRO DE ACCESO EN LOGIN: Respuesta inmediata garantizada
   socket.on("checkUsername", async (username) => {
     try {
+      trace("CHECK_USERNAME", "Validando nombre de usuario", { username });
       if (gameState.inProgress) {
+        warn("CHECK_USERNAME", "Intento de acceso mientras había una partida en curso", { username });
         return socket.emit("usernameResult", { available: false, error: "PARTIDA_EN_CURSO" });
       }
 
       const count = await Jugador.countDocuments({ online: true });
       if (count >= 4) {
+        warn("CHECK_USERNAME", "Intento de acceso con la sala llena", { username, onlinePlayers: count });
         return socket.emit("usernameResult", { available: false, error: "SALA_LLENA" });
       }
 
       const existe = await Jugador.findOne({ username, online: true });
       if (existe) {
+        warn("CHECK_USERNAME", "Nombre de usuario repetido", { username });
         return socket.emit("usernameResult", { available: false, error: "USUARIO_REPETIDO" });
       }
 
       // Si pasa todos los filtros, permitir ingreso
+      info("CHECK_USERNAME", "Nombre de usuario validado correctamente", { username });
       socket.emit("usernameResult", { available: true, username });
     } catch (error) {
       console.error("Error en checkUsername:", error);
+      logError("CHECK_USERNAME", "Error al validar el nombre de usuario", { message: error.message });
       socket.emit("usernameResult", { available: false, error: "ERROR_SERVIDOR" });
     }
   });
@@ -252,8 +338,14 @@ io.on("connection", (socket) => {
 
       io.emit("playersUpdated", playersOnline);
       io.emit("lobbyInfo", { players: playersOnline, host: gameState.host });
+      info("LOBBY_JOIN", "Jugador ingresó al lobby", {
+        username,
+        totalPlayers: playersOnline.length,
+        host: gameState.host
+      });
     } catch (error) {
       console.error(error);
+      logError("LOBBY_JOIN", "Error al ingresar al lobby", { message: error.message });
     }
   });
 
@@ -270,9 +362,19 @@ io.on("connection", (socket) => {
           maxRounds: gameState.maxRounds
         });
         console.log(`Configuración actualizada por ${socket.username}:`, { roundTime: gameState.roundTime, maxRounds: gameState.maxRounds });
+        info("CONFIG_UPDATE", "Configuración de juego actualizada", {
+          host: socket.username,
+          roundTime: gameState.roundTime,
+          maxRounds: gameState.maxRounds
+        });
+      } else {
+        warn("CONFIG_UPDATE", "Intento no autorizado de cambiar la configuración", {
+          username: socket.username
+        });
       }
     } catch (error) {
       console.error("Error updating config:", error);
+      logError("CONFIG_UPDATE", "Error al actualizar la configuración", { message: error.message });
     }
   });
 
@@ -295,6 +397,10 @@ io.on("connection", (socket) => {
     try {
       // only host can start
       if (!socket.username || socket.username !== gameState.host) {
+        warn("GAME_START", "Intento no autorizado de iniciar partida", {
+          username: socket.username,
+          host: gameState.host
+        });
         return socket.emit('chat', { username: 'SISTEMA', text: 'Solo el anfitrión puede iniciar la partida.' });
       }
 
@@ -303,6 +409,11 @@ io.on("connection", (socket) => {
       const maxPlayers = 4;
 
       if (playersOnline.length < minPlayers || playersOnline.length > maxPlayers) {
+        warn("GAME_START", "Cantidad de jugadores fuera de rango para iniciar", {
+          players: playersOnline.length,
+          minPlayers,
+          maxPlayers
+        });
         return socket.emit("chat", { username: "SISTEMA", text: `Se necesitan entre ${minPlayers} y ${maxPlayers} jugadores para iniciar.` });
       }
 
@@ -322,6 +433,13 @@ io.on("connection", (socket) => {
 
       gameState.players = playersOnline.map(p => ({ username: p.username, socketId: p.socketId }));
 
+      info("GAME_START", "Inicio de partida solicitado", {
+        host: socket.username,
+        roundTime,
+        maxRounds,
+        players: gameState.players.map((player) => player.username)
+      });
+
       io.emit("redirectToGame");
 
       setTimeout(() => {
@@ -329,6 +447,7 @@ io.on("connection", (socket) => {
       }, 3500);
     } catch (err) {
       console.error('Error starting game:', err);
+      logError("GAME_START", "Error al iniciar la partida", { message: err.message });
     }
   });
 
@@ -349,6 +468,10 @@ io.on("connection", (socket) => {
       }
 
       await emitScoreboard();
+      trace("GAME_SYNC", "Pantalla de juego sincronizada", {
+        username,
+        inProgress: gameState.inProgress
+      });
 
       if (gameState.inProgress) {
         const drawer = gameState.players[gameState.currentDrawerIndex];
@@ -369,6 +492,7 @@ io.on("connection", (socket) => {
       }
     } catch (err) {
       console.error(err);
+      logError("GAME_SYNC", "Error al sincronizar la pantalla de juego", { message: err.message });
     }
   });
 
@@ -396,6 +520,12 @@ io.on("connection", (socket) => {
           jugador.score = (jugador.score || 0) + points;
           await jugador.save();
 
+          info("CORRECT_GUESS", "Palabra adivinada correctamente", {
+            username,
+            points,
+            remainingTime: timeLeft
+          });
+
           io.emit("chat", { 
             username: "SISTEMA", 
             text: `¡${username} ha adivinado la palabra! (+${points} pts)` 
@@ -411,11 +541,13 @@ io.on("connection", (socket) => {
       }
     } catch (err) {
       console.error(err);
+      logError("CHAT", "Error procesando mensaje de chat", { message: err.message });
     }
   });
 
   socket.on("disconnect", async () => {
     try {
+      debug("SOCKET_DISCONNECT", "Cliente desconectado", { socketId: socket.id, username: socket.username });
       if (socket.username) {
         await Jugador.findOneAndUpdate({ username: socket.username }, { online: false });
         if (gameState.inProgress) {
@@ -434,9 +566,13 @@ io.on("connection", (socket) => {
       await clearGameStateIfLobbyEmpty();
     } catch (error) {
       console.error(error);
+      logError("DISCONNECT", "Error al procesar la desconexión", { message: error.message });
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Servidor corriendo en el puerto ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
+  info("SERVER_LISTENING", "Servidor escuchando peticiones", { port: PORT });
+});
